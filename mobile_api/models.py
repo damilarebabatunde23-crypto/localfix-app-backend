@@ -11,7 +11,7 @@ class UserProfile(models.Model):
     handle = models.CharField(max_length=60, blank=True, default='')
     email = models.EmailField(unique=True)
     password_hash = models.CharField(max_length=256, blank=True, default='')
-    auth_provider = models.CharField(max_length=20, default='email')  # 'email' or 'google'
+    auth_provider = models.CharField(max_length=20, default='email')
     google_id = models.CharField(max_length=128, blank=True, default='')
     phone = models.CharField(max_length=32, blank=True, default='')
     bio = models.TextField(
@@ -37,10 +37,14 @@ class UserProfile(models.Model):
 
 class FeedPost(models.Model):
     author_name = models.CharField(max_length=120)
-    badge_title = models.CharField(max_length=120, default='Verified Artisan')
+    author_email = models.EmailField(blank=True, default='')
+    author_avatar = models.TextField(blank=True, default='')
+    badge_title = models.CharField(max_length=120, default='Verified Member')
     location = models.CharField(max_length=120, default='Global')
     text = models.TextField()
-    image_url = models.URLField(blank=True)
+    image_url = models.TextField(blank=True, default='')
+    video_url = models.TextField(blank=True, default='')
+    is_video = models.BooleanField(default=False)
     escrow_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     likes = models.PositiveIntegerField(default=0)
     comments_count = models.PositiveIntegerField(default=0)
@@ -54,13 +58,37 @@ class FeedPost(models.Model):
         return f'{self.author_name}: {self.text[:40]}'
 
 
+class PostLike(models.Model):
+    post = models.ForeignKey(FeedPost, related_name='like_records', on_delete=models.CASCADE)
+    user_email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('post', 'user_email')
+
+
+class PostComment(models.Model):
+    post = models.ForeignKey(FeedPost, related_name='comments', on_delete=models.CASCADE)
+    author_name = models.CharField(max_length=120)
+    author_email = models.EmailField(blank=True, default='')
+    author_avatar = models.TextField(blank=True, default='')
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+
 class VideoReel(models.Model):
     creator_name = models.CharField(max_length=120)
+    creator_email = models.EmailField(blank=True, default='')
+    creator_avatar = models.TextField(blank=True, default='')
     trade_tag = models.CharField(max_length=60, default='VERIFIED PRO')
     title = models.CharField(max_length=160)
     caption = models.TextField(blank=True)
-    thumbnail_url = models.URLField(blank=True)
-    video_url = models.URLField(blank=True)
+    thumbnail_url = models.TextField(blank=True, default='')
+    video_url = models.TextField(blank=True, default='')
+    location = models.CharField(max_length=120, blank=True, default='Global')
     price_usd = models.DecimalField(max_digits=10, decimal_places=2, default=45)
     direct_booking_enabled = models.BooleanField(default=True)
     escrow_protected = models.BooleanField(default=True)
@@ -76,6 +104,39 @@ class VideoReel(models.Model):
         return f'{self.title} by {self.creator_name}'
 
 
+class ReelLike(models.Model):
+    reel = models.ForeignKey(VideoReel, related_name='like_records', on_delete=models.CASCADE)
+    user_email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('reel', 'user_email')
+
+
+class ReelComment(models.Model):
+    reel = models.ForeignKey(VideoReel, related_name='comments', on_delete=models.CASCADE)
+    author_name = models.CharField(max_length=120)
+    author_email = models.EmailField(blank=True, default='')
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+
+class ChatMessage(models.Model):
+    sender_email = models.EmailField()
+    sender_name = models.CharField(max_length=120)
+    receiver_email = models.EmailField()
+    receiver_name = models.CharField(max_length=120)
+    text = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+
 class NearbyArtisan(models.Model):
     name = models.CharField(max_length=120)
     profession = models.CharField(max_length=120)
@@ -87,9 +148,6 @@ class NearbyArtisan(models.Model):
     avatar_url = models.URLField(blank=True)
     is_online = models.BooleanField(default=True)
 
-    def __str__(self):
-        return f'{self.name} - {self.profession} ({self.city})'
-
 
 class EscrowContract(models.Model):
     title = models.CharField(max_length=160)
@@ -97,6 +155,3 @@ class EscrowContract(models.Model):
     amount_usd = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=40, default='In Escrow Custody')
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f'{self.title} (${self.amount_usd})'

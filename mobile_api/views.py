@@ -2,18 +2,34 @@ import json
 import os
 import secrets
 import urllib.request
+from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
+from django.core.files.storage import FileSystemStorage
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 
-from .models import UserProfile, FeedPost, VideoReel, NearbyArtisan, EscrowContract
+from .models import (
+    UserProfile,
+    FeedPost,
+    PostLike,
+    PostComment,
+    VideoReel,
+    ReelLike,
+    ReelComment,
+    ChatMessage,
+    EscrowContract,
+)
 from .serializers import (
     UserProfileSerializer,
     FeedPostSerializer,
+    PostCommentSerializer,
     VideoReelSerializer,
-    NearbyArtisanSerializer,
+    ReelCommentSerializer,
+    ChatMessageSerializer,
     EscrowContractSerializer,
 )
 
@@ -128,11 +144,7 @@ def auth_register(request):
     )
     token = f'lf_{secrets.token_urlsafe(32)}'
     return Response(
-        {
-            'success': True,
-            'token': token,
-            'user': UserProfileSerializer(profile).data,
-        },
+        {'success': True, 'token': token, 'user': UserProfileSerializer(profile).data},
         status=status.HTTP_201_CREATED,
     )
 
@@ -168,11 +180,7 @@ def auth_login(request):
         )
 
     token = f'lf_{secrets.token_urlsafe(32)}'
-    return Response({
-        'success': True,
-        'token': token,
-        'user': UserProfileSerializer(profile).data,
-    })
+    return Response({'success': True, 'token': token, 'user': UserProfileSerializer(profile).data})
 
 
 @api_view(['POST'])
@@ -183,20 +191,14 @@ def auth_google(request):
     country_code = (request.data.get('country_code') or 'US').strip().upper()
 
     if not id_token:
-        return Response(
-            {'success': False, 'error': 'Missing Google id_token.'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return Response({'success': False, 'error': 'Missing Google id_token.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         verify_url = f'https://oauth2.googleapis.com/tokeninfo?id_token={id_token}'
         with urllib.request.urlopen(verify_url, timeout=8) as resp:
             info = json.loads(resp.read().decode('utf-8'))
     except Exception:
-        return Response(
-            {'success': False, 'error': 'Invalid or expired Google token.'},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
+        return Response({'success': False, 'error': 'Invalid or expired Google token.'}, status=status.HTTP_401_UNAUTHORIZED)
 
     aud = info.get('aud', '')
     if aud != GOOGLE_CLIENT_ID:
@@ -228,11 +230,16 @@ def auth_google(request):
         },
     )
     token = f'lf_g_{secrets.token_urlsafe(32)}'
-    return Response({
-        'success': True,
-        'token': token,
-        'user': UserProfileSerializer(profile).data,
-    })
+    return Response({'success': True, 'token': token, 'user': UserProfileSerializer(profile).data})
+
+
+@api_view(['GET'])
+def users_list_view(request):
+    exclude_email = (request.query_params.get('excludeEmail') or '').strip().lower()
+    qs = UserProfile.objects.all().order_by('-created_at')
+    if exclude_email:
+        qs = qs.exclude(email__iexact=exclude_email)
+    return Response({'success': True, 'users': UserProfileSerializer(qs, many=True).data})
 
 
 @api_view(['GET', 'PUT', 'PATCH'])
@@ -258,43 +265,245 @@ def profile_view(request):
     return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def media_upload_view(request):
+    uploaded = request.FILES.get('file')
+    if not uploaded:
+        return Response({'success': False, 'error': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+    os.makedirs(upload_dir, exist_ok=True)
+    fs = FileSystemStorage(location=upload_dir)
+    ext = os.path.splitext(uploaded.name)[1] or '.bin'
+    filename = f'lf_{secrets.token_hex(8)}{ext}'
+    saved_name = fs.save(filename, uploaded)
+    rel_url = f'{settings.MEDIA_URL}uploads/{saved_name}'
+    abs_url = request.build_absolute_uri(rel_url)
+    # Render terminates HTTPS at proxy; ensure https scheme in production
+    if 'onrender.com' in abs_url and abs_url.startswith('http://'):
+        abs_url = abs_url.replace('http://', 'https://', 1)
+    return Response({'success': True, 'url': abs_url, 'filename': saved_name}, status=status.HTTP_201_CREATED)
+
+
 @api_view(['GET', 'POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
 def feed_view(request):
     if request.method == 'GET':
+        user_email = (request.query_params.get('email') or '').strip().lower()
         posts = FeedPost.objects.all()
-        return Response({'success': True, 'posts': FeedPostSerializer(posts, many=True).data})
+        liked_ids = set()
+        if user_email:
+            liked_ids = set(PostLike.objects.filter(user_email=user_email).values_list('post_id', flat=True))
+        serialized = []
+        for post in posts:
+            item = FeedPostSerializer(post).data
+            item['liked_by_me'] = post.id in liked_ids
+            serialized.append(item)
+        return Response({'success': True, 'posts': serialized})
 
     serializer = FeedPostSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save()
-        return Response({'success': True, 'post': serializer.data}, status=status.HTTP_201_CREATED)
+        post = serializer.save()
+        data = FeedPostSerializer(post).data
+        data['liked_by_me'] = False
+        return Response({'success': True, 'post': data}, status=status.HTTP_201_CREATED)
     return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def feed_toggle_like(request, post_id):
+    post = FeedPost.objects.filter(id=post_id).first()
+    if not post:
+        return Response({'success': False, 'error': 'Post not found.'}, status=status.HTTP_404_NOT_FOUND)
+    user_email = (request.data.get('email') or 'guest@localfix.com').strip().lower()
+    existing = PostLike.objects.filter(post=post, user_email=user_email).first()
+    if existing:
+        existing.delete()
+        liked = False
+    else:
+        PostLike.objects.create(post=post, user_email=user_email)
+        liked = True
+    post.likes = PostLike.objects.filter(post=post).count()
+    post.save(update_fields=['likes'])
+    return Response({'success': True, 'liked': liked, 'likes': post.likes})
 
 
 @api_view(['GET', 'POST'])
+def feed_comments_view(request, post_id):
+    post = FeedPost.objects.filter(id=post_id).first()
+    if not post:
+        return Response({'success': False, 'error': 'Post not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        comments = PostComment.objects.filter(post=post)
+        return Response({'success': True, 'comments': PostCommentSerializer(comments, many=True).data})
+
+    text = (request.data.get('text') or '').strip()
+    if not text:
+        return Response({'success': False, 'error': 'Comment text cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    comment = PostComment.objects.create(
+        post=post,
+        author_name=(request.data.get('author_name') or 'LocalFix User').strip(),
+        author_email=(request.data.get('author_email') or '').strip().lower(),
+        author_avatar=(request.data.get('author_avatar') or '').strip(),
+        text=text,
+    )
+    post.comments_count = PostComment.objects.filter(post=post).count()
+    post.save(update_fields=['comments_count'])
+    return Response(
+        {'success': True, 'comment': PostCommentSerializer(comment).data, 'comments_count': post.comments_count},
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(['GET', 'POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
 def reels_view(request):
     if request.method == 'GET':
+        user_email = (request.query_params.get('email') or '').strip().lower()
         reels = VideoReel.objects.all()
-        return Response({'success': True, 'reels': VideoReelSerializer(reels, many=True).data})
+        liked_ids = set()
+        if user_email:
+            liked_ids = set(ReelLike.objects.filter(user_email=user_email).values_list('reel_id', flat=True))
+        serialized = []
+        for reel in reels:
+            item = VideoReelSerializer(reel).data
+            item['liked_by_me'] = reel.id in liked_ids
+            serialized.append(item)
+        return Response({'success': True, 'reels': serialized})
 
     serializer = VideoReelSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save()
-        return Response({'success': True, 'reel': serializer.data}, status=status.HTTP_201_CREATED)
+        reel = serializer.save()
+        data = VideoReelSerializer(reel).data
+        data['liked_by_me'] = False
+        return Response({'success': True, 'reel': data}, status=status.HTTP_201_CREATED)
     return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def reel_toggle_like(request, reel_id):
+    reel = VideoReel.objects.filter(id=reel_id).first()
+    if not reel:
+        return Response({'success': False, 'error': 'Reel not found.'}, status=status.HTTP_404_NOT_FOUND)
+    user_email = (request.data.get('email') or 'guest@localfix.com').strip().lower()
+    existing = ReelLike.objects.filter(reel=reel, user_email=user_email).first()
+    if existing:
+        existing.delete()
+        liked = False
+    else:
+        ReelLike.objects.create(reel=reel, user_email=user_email)
+        liked = True
+    reel.likes = ReelLike.objects.filter(reel=reel).count()
+    reel.save(update_fields=['likes'])
+    return Response({'success': True, 'liked': liked, 'likes': reel.likes})
+
+
+@api_view(['GET', 'POST'])
+def reel_comments_view(request, reel_id):
+    reel = VideoReel.objects.filter(id=reel_id).first()
+    if not reel:
+        return Response({'success': False, 'error': 'Reel not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        comments = ReelComment.objects.filter(reel=reel)
+        return Response({'success': True, 'comments': ReelCommentSerializer(comments, many=True).data})
+
+    text = (request.data.get('text') or '').strip()
+    if not text:
+        return Response({'success': False, 'error': 'Comment text cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    comment = ReelComment.objects.create(
+        reel=reel,
+        author_name=(request.data.get('author_name') or 'LocalFix User').strip(),
+        author_email=(request.data.get('author_email') or '').strip().lower(),
+        text=text,
+    )
+    reel.comments_count = ReelComment.objects.filter(reel=reel).count()
+    reel.save(update_fields=['comments_count'])
+    return Response(
+        {'success': True, 'comment': ReelCommentSerializer(comment).data, 'comments_count': reel.comments_count},
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(['GET'])
+def chat_conversations_view(request):
+    my_email = (request.query_params.get('email') or '').strip().lower()
+    if not my_email:
+        return Response({'success': True, 'conversations': []})
+
+    msgs = ChatMessage.objects.filter(
+        Q(sender_email__iexact=my_email) | Q(receiver_email__iexact=my_email)
+    ).order_by('-created_at')
+
+    seen = {}
+    for m in msgs:
+        other_email = m.receiver_email.lower() if m.sender_email.lower() == my_email else m.sender_email.lower()
+        other_name = m.receiver_name if m.sender_email.lower() == my_email else m.sender_name
+        if other_email not in seen:
+            profile = UserProfile.objects.filter(email__iexact=other_email).first()
+            seen[other_email] = {
+                'counterpart_email': other_email,
+                'counterpart_name': profile.name if profile else other_name,
+                'counterpart_role': profile.trade if profile else 'Member',
+                'counterpart_avatar': profile.avatar_url if profile else '',
+                'last_message': m.text,
+                'last_message_time': m.created_at.isoformat(),
+            }
+
+    return Response({'success': True, 'conversations': list(seen.values())})
+
+
+@api_view(['GET', 'POST'])
+def chat_messages_view(request):
+    if request.method == 'GET':
+        u1 = (request.query_params.get('user1') or '').strip().lower()
+        u2 = (request.query_params.get('user2') or '').strip().lower()
+        if not u1 or not u2:
+            return Response({'success': True, 'messages': []})
+        qs = ChatMessage.objects.filter(
+            (Q(sender_email__iexact=u1) & Q(receiver_email__iexact=u2))
+            | (Q(sender_email__iexact=u2) & Q(receiver_email__iexact=u1))
+        ).order_by('created_at')
+        return Response({'success': True, 'messages': ChatMessageSerializer(qs, many=True).data})
+
+    sender_email = (request.data.get('sender_email') or '').strip().lower()
+    receiver_email = (request.data.get('receiver_email') or '').strip().lower()
+    text = (request.data.get('text') or '').strip()
+    if not sender_email or not receiver_email or not text:
+        return Response(
+            {'success': False, 'error': 'sender_email, receiver_email, and text are required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    msg = ChatMessage.objects.create(
+        sender_email=sender_email,
+        sender_name=(request.data.get('sender_name') or sender_email.split('@')[0]).strip(),
+        receiver_email=receiver_email,
+        receiver_name=(request.data.get('receiver_name') or receiver_email.split('@')[0]).strip(),
+        text=text,
+    )
+    return Response({'success': True, 'message': ChatMessageSerializer(msg).data}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
 def nearby_artisans_view(request):
-    radius_km = float(request.query_params.get('radiusKm', 50))
-    city = request.query_params.get('city')
-    qs = NearbyArtisan.objects.filter(distance_km__lte=radius_km)
+    city = (request.query_params.get('city') or '').strip()
+    exclude_email = (request.query_params.get('excludeEmail') or '').strip().lower()
+    qs = UserProfile.objects.all().order_by('-created_at')
+    if exclude_email:
+        qs = qs.exclude(email__iexact=exclude_email)
     if city:
-        qs = qs.filter(city__icontains=city)
+        city_matches = qs.filter(city__icontains=city.split(',')[0].strip())
+        if city_matches.exists():
+            qs = city_matches
     return Response({
         'success': True,
         'count': qs.count(),
-        'artisans': NearbyArtisanSerializer(qs, many=True).data,
+        'artisans': UserProfileSerializer(qs, many=True).data,
     })
 
 
@@ -304,7 +513,7 @@ def escrow_summary_view(request):
     total = sum(float(c.amount_usd) for c in contracts)
     return Response({
         'success': True,
-        'vault_balance_usd': total or 1240.0,
+        'vault_balance_usd': total,
         'active_contracts': contracts.count(),
         'contracts': EscrowContractSerializer(contracts, many=True).data,
     })
