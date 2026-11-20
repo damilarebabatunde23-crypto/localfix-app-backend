@@ -19,11 +19,14 @@ class UserProfile(models.Model):
         default='Connecting with verified global artisans for home, solar, and smart repair projects.',
     )
     trade = models.CharField(max_length=120, blank=True, default='Verified Member')
-    city = models.CharField(max_length=120, blank=True, default='')
+    city = models.CharField(max_length=160, blank=True, default='')
+    exact_address = models.TextField(blank=True, default='')
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
+    gps_accuracy = models.FloatField(null=True, blank=True)
+    location_updated_at = models.DateTimeField(null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='Customer')
-    avatar_url = models.URLField(blank=True, default='')
+    avatar_url = models.TextField(blank=True, default='')
     country_code = models.CharField(max_length=8, default='US')
     currency_code = models.CharField(max_length=8, default='USD')
     language = models.CharField(max_length=40, default='English (Global)')
@@ -33,6 +36,33 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f'{self.name} <{self.email}> ({self.role})'
+
+
+class LocationLog(models.Model):
+    user = models.ForeignKey(UserProfile, related_name='location_logs', on_delete=models.CASCADE)
+    email = models.EmailField(db_index=True)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    exact_address = models.TextField(blank=True, default='')
+    city = models.CharField(max_length=160, blank=True, default='')
+    country_code = models.CharField(max_length=8, blank=True, default='')
+    accuracy = models.FloatField(null=True, blank=True)
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-recorded_at']
+
+
+class StoredMedia(models.Model):
+    uuid_key = models.CharField(max_length=64, unique=True, db_index=True)
+    filename = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=120, default='application/octet-stream')
+    data = models.BinaryField()
+    size = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.uuid_key}/{self.filename} ({self.size} bytes)'
 
 
 class FeedPost(models.Model):

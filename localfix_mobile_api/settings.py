@@ -1,6 +1,11 @@
 from pathlib import Path
 import os
 
+try:
+    import dj_database_url
+except ImportError:
+    dj_database_url = None
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'localfix-mobile-dev-secret-key-change-in-prod')
@@ -54,12 +59,21 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'localfix_mobile_api.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if os.environ.get('DATABASE_URL') and dj_database_url is not None:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.environ.get('DATABASE_URL'),
+            conn_max_age=600,
+            ssl_require=os.environ.get('DATABASE_SSL', 'True') == 'True',
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [

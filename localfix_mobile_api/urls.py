@@ -4,8 +4,45 @@ import re
 
 from django.conf import settings
 from django.contrib import admin
-from django.http import FileResponse, Http404, JsonResponse, StreamingHttpResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.urls import path, include, re_path
+
+from mobile_api.models import StoredMedia
+
+
+def serve_db_media_range(request, uuid_key, filename):
+    """Serve DB-persisted photos, avatars & videos with HTTP Range (206 Partial Content) support."""
+    media = StoredMedia.objects.filter(uuid_key=uuid_key).first()
+    if not media:
+        raise Http404('Media not found.')
+
+    raw = bytes(media.data)
+    file_size = len(raw)
+    content_type = media.content_type or mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+
+    range_header = request.META.get('HTTP_RANGE', '').strip()
+    range_match = re.match(r'bytes=(\d+)-(\d*)', range_header)
+    if range_match:
+        first_byte = int(range_match.group(1))
+        last_byte = int(range_match.group(2)) if range_match.group(2) else file_size - 1
+        last_byte = min(last_byte, file_size - 1)
+        if first_byte >= file_size:
+            resp = HttpResponse(status=416)
+            resp['Content-Range'] = f'bytes */{file_size}'
+            return resp
+        chunk = raw[first_byte : last_byte + 1]
+        resp = HttpResponse(chunk, status=206, content_type=content_type)
+        resp['Content-Length'] = str(len(chunk))
+        resp['Content-Range'] = f'bytes {first_byte}-{last_byte}/{file_size}'
+        resp['Accept-Ranges'] = 'bytes'
+        resp['Cache-Control'] = 'public, max-age=86400'
+        return resp
+
+    resp = HttpResponse(raw, content_type=content_type)
+    resp['Content-Length'] = str(file_size)
+    resp['Accept-Ranges'] = 'bytes'
+    resp['Cache-Control'] = 'public, max-age=86400'
+    return resp
 
 
 def _file_iterator(file_path, offset=0, length=None, chunk_size=8192):
@@ -98,5 +135,6 @@ urlpatterns = [
     path('', api_root, name='api-root'),
     path('admin/', admin.site.urls),
     path('api/', include('mobile_api.urls')),
+    re_path(r'^media/db/(?P<uuid_key>[^/]+)/(?P<filename>.+)$', serve_db_media_range),
     re_path(r'^media/(?P<path>.*)$', serve_media_range),
 ]

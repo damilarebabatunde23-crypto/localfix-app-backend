@@ -1,4 +1,5 @@
 import json
+import mimetypes
 import os
 import secrets
 import urllib.request
@@ -14,6 +15,8 @@ from rest_framework.response import Response
 
 from .models import (
     UserProfile,
+    LocationLog,
+    StoredMedia,
     FeedPost,
     PostLike,
     PostComment,
@@ -258,11 +261,94 @@ def profile_view(request):
     if request.method == 'GET':
         return Response({'success': True, 'profile': UserProfileSerializer(profile).data})
 
-    serializer = UserProfileSerializer(profile, data=request.data, partial=True)
+    # Prevent manual location spoofing via /api/profile/ (location is auto-locked via device GPS /api/location/update/)
+    payload = dict(request.data)
+    for locked_field in ('city', 'exact_address', 'latitude', 'longitude', 'gps_accuracy', 'location_updated_at'):
+        payload.pop(locked_field, None)
+
+    serializer = UserProfileSerializer(profile, data=payload, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response({'success': True, 'profile': serializer.data})
     return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def update_gps_location_view(request):
+    """Stores exact real-time GPS coordinates & reverse-geocoded street address from the user's device."""
+    email = (request.data.get('email') or request.headers.get('X-User-Email') or '').strip().lower()
+    if not email:
+        return Response({'success': False, 'error': 'User email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        lat = float(request.data.get('latitude'))
+        lng = float(request.data.get('longitude'))
+    except (TypeError, ValueError):
+        return Response({'success': False, 'error': 'Valid latitude and longitude are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    exact_address = (request.data.get('exact_address') or '').strip()
+    city = (request.data.get('city') or '').strip()
+    country_code = (request.data.get('country_code') or '').strip().upper()
+    accuracy = None
+    if request.data.get('accuracy') is not None:
+        try:
+            accuracy = float(request.data.get('accuracy'))
+        except (TypeError, ValueError):
+            accuracy = None
+
+    profile = UserProfile.objects.filter(email__iexact=email).first()
+    if not profile:
+        return Response({'success': False, 'error': 'User profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    profile.latitude = lat
+    profile.longitude = lng
+    if exact_address:
+        profile.exact_address = exact_address
+    if city:
+        profile.city = city
+    if country_code:
+        profile.country_code = country_code[:8]
+    if accuracy is not None:
+        profile.gps_accuracy = accuracy
+    profile.location_updated_at = timezone.now()
+    profile.save()
+
+    LocationLog.objects.create(
+        user=profile,
+        email=profile.email,
+        latitude=lat,
+        longitude=lng,
+        exact_address=exact_address or profile.exact_address,
+        city=city or profile.city,
+        country_code=country_code or profile.country_code,
+        accuracy=accuracy,
+    )
+
+    return Response({'success': True, 'user': UserProfileSerializer(profile).data})
+
+
+@api_view(['GET'])
+def location_history_view(request):
+    """Returns stored GPS check-in history for a specific employee email (for employer audit)."""
+    email = (request.query_params.get('email') or '').strip().lower()
+    qs = LocationLog.objects.all()
+    if email:
+        qs = qs.filter(email__iexact=email)
+    logs = [
+        {
+            'id': log.id,
+            'email': log.email,
+            'latitude': log.latitude,
+            'longitude': log.longitude,
+            'exact_address': log.exact_address,
+            'city': log.city,
+            'country_code': log.country_code,
+            'accuracy': log.accuracy,
+            'recorded_at': log.recorded_at.isoformat(),
+        }
+        for log in qs[:50]
+    ]
+    return Response({'success': True, 'count': len(logs), 'history': logs})
 
 
 @api_view(['POST'])
@@ -272,18 +358,26 @@ def media_upload_view(request):
     if not uploaded:
         return Response({'success': False, 'error': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
-    os.makedirs(upload_dir, exist_ok=True)
-    fs = FileSystemStorage(location=upload_dir)
-    ext = os.path.splitext(uploaded.name)[1] or '.bin'
-    filename = f'lf_{secrets.token_hex(8)}{ext}'
-    saved_name = fs.save(filename, uploaded)
-    rel_url = f'{settings.MEDIA_URL}uploads/{saved_name}'
+    raw_bytes = uploaded.read()
+    ext = os.path.splitext(uploaded.name)[1].lower() or '.bin'
+    uuid_key = f'lf_{secrets.token_hex(10)}'
+    safe_name = f'{uuid_key}{ext}'
+    content_type = uploaded.content_type or mimetypes.guess_type(safe_name)[0] or 'application/octet-stream'
+
+    # Store permanently in database (persists across Render restarts when backed by PostgreSQL!)
+    StoredMedia.objects.create(
+        uuid_key=uuid_key,
+        filename=safe_name,
+        content_type=content_type,
+        data=raw_bytes,
+        size=len(raw_bytes),
+    )
+
+    rel_url = f'{settings.MEDIA_URL}db/{uuid_key}/{safe_name}'
     abs_url = request.build_absolute_uri(rel_url)
-    # Render terminates HTTPS at proxy; ensure https scheme in production
     if 'onrender.com' in abs_url and abs_url.startswith('http://'):
         abs_url = abs_url.replace('http://', 'https://', 1)
-    return Response({'success': True, 'url': abs_url, 'filename': saved_name}, status=status.HTTP_201_CREATED)
+    return Response({'success': True, 'url': abs_url, 'filename': safe_name}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET', 'POST'])
