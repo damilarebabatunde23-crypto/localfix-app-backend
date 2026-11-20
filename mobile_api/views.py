@@ -343,8 +343,19 @@ def feed_comments_view(request, post_id):
     if not text:
         return Response({'success': False, 'error': 'Comment text cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
 
+    parent_comment = None
+    raw_parent = request.data.get('parent_id') or request.data.get('parent')
+    if raw_parent not in (None, ''):
+        try:
+            parent_comment = PostComment.objects.filter(id=int(raw_parent), post=post).first()
+            if parent_comment and parent_comment.parent_id:
+                parent_comment = parent_comment.parent
+        except (ValueError, TypeError):
+            parent_comment = None
+
     comment = PostComment.objects.create(
         post=post,
+        parent=parent_comment,
         author_name=(request.data.get('author_name') or 'LocalFix User').strip(),
         author_email=(request.data.get('author_email') or '').strip().lower(),
         author_avatar=(request.data.get('author_avatar') or '').strip(),
@@ -415,8 +426,19 @@ def reel_comments_view(request, reel_id):
     if not text:
         return Response({'success': False, 'error': 'Comment text cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
 
+    parent_comment = None
+    raw_parent = request.data.get('parent_id') or request.data.get('parent')
+    if raw_parent not in (None, ''):
+        try:
+            parent_comment = ReelComment.objects.filter(id=int(raw_parent), reel=reel).first()
+            if parent_comment and parent_comment.parent_id:
+                parent_comment = parent_comment.parent
+        except (ValueError, TypeError):
+            parent_comment = None
+
     comment = ReelComment.objects.create(
         reel=reel,
+        parent=parent_comment,
         author_name=(request.data.get('author_name') or 'LocalFix User').strip(),
         author_email=(request.data.get('author_email') or '').strip().lower(),
         text=text,

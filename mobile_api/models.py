@@ -69,6 +69,7 @@ class PostLike(models.Model):
 
 class PostComment(models.Model):
     post = models.ForeignKey(FeedPost, related_name='comments', on_delete=models.CASCADE)
+    parent = models.ForeignKey('self', null=True, blank=True, related_name='replies', on_delete=models.CASCADE)
     author_name = models.CharField(max_length=120)
     author_email = models.EmailField(blank=True, default='')
     author_avatar = models.TextField(blank=True, default='')
@@ -115,6 +116,7 @@ class ReelLike(models.Model):
 
 class ReelComment(models.Model):
     reel = models.ForeignKey(VideoReel, related_name='comments', on_delete=models.CASCADE)
+    parent = models.ForeignKey('self', null=True, blank=True, related_name='replies', on_delete=models.CASCADE)
     author_name = models.CharField(max_length=120)
     author_email = models.EmailField(blank=True, default='')
     text = models.TextField()
