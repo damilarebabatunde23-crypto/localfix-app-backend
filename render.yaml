@@ -2,7 +2,7 @@ services:
   - type: web
     name: localfix-app-backend
     runtime: python
-    buildCommand: "./build.sh"
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
     startCommand: "gunicorn localfix_mobile_api.wsgi:application --bind 0.0.0.0:$PORT"
     envVars:
       - key: PYTHON_VERSION
