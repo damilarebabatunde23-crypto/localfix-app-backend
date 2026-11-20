@@ -7,29 +7,32 @@ class UserProfile(models.Model):
         ('Artisan', 'Artisan'),
     ]
 
-    name = models.CharField(max_length=120, default='Damilare Babatunde')
-    handle = models.CharField(max_length=60, default='@damilare_fix')
-    email = models.EmailField(unique=True, default='user@localfix.com')
-    phone = models.CharField(max_length=32, blank=True, default='+1 (555) 234-8910')
+    name = models.CharField(max_length=120, default='LocalFix User')
+    handle = models.CharField(max_length=60, blank=True, default='')
+    email = models.EmailField(unique=True)
+    password_hash = models.CharField(max_length=256, blank=True, default='')
+    auth_provider = models.CharField(max_length=20, default='email')  # 'email' or 'google'
+    google_id = models.CharField(max_length=128, blank=True, default='')
+    phone = models.CharField(max_length=32, blank=True, default='')
     bio = models.TextField(
         blank=True,
         default='Connecting with verified global artisans for home, solar, and smart repair projects.',
     )
-    trade = models.CharField(max_length=120, blank=True, default='Homeowner & Tech Enthusiast')
-    city = models.CharField(max_length=120, blank=True, default='New York, USA')
+    trade = models.CharField(max_length=120, blank=True, default='Verified Member')
+    city = models.CharField(max_length=120, blank=True, default='')
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='Customer')
-    avatar_url = models.URLField(
-        blank=True,
-        default='https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300',
-    )
+    avatar_url = models.URLField(blank=True, default='')
     country_code = models.CharField(max_length=8, default='US')
     currency_code = models.CharField(max_length=8, default='USD')
     language = models.CharField(max_length=40, default='English (Global)')
     is_dark_mode = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f'{self.name} ({self.role})'
+        return f'{self.name} <{self.email}> ({self.role})'
 
 
 class FeedPost(models.Model):

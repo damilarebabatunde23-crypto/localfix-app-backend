@@ -9,8 +9,10 @@ def api_root(_request):
         'status': 'running',
         'endpoints': {
             'health': '/api/health/',
+            'ip_location': '/api/location/ip/',
             'login': '/api/auth/login/',
             'register': '/api/auth/register/',
+            'google_auth': '/api/auth/google/',
             'profile': '/api/profile/',
             'feed': '/api/feed/',
             'reels': '/api/reels/',

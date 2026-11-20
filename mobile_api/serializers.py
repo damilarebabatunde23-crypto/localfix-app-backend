@@ -5,7 +5,7 @@ from .models import UserProfile, FeedPost, VideoReel, NearbyArtisan, EscrowContr
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = '__all__'
+        exclude = ['password_hash']
 
 
 class FeedPostSerializer(serializers.ModelSerializer):
