@@ -221,7 +221,7 @@ def auth_google(request):
     picture = info.get('picture') or ''
     handle = '@' + email.split('@')[0].replace('.', '_')
 
-    profile, _ = UserProfile.objects.update_or_create(
+    profile, created = UserProfile.objects.get_or_create(
         email=email,
         defaults={
             'name': name,
@@ -232,10 +232,55 @@ def auth_google(request):
             'role': role if role in ('Customer', 'Artisan') else 'Customer',
             'city': city,
             'country_code': country_code,
+            'is_company_verified': email.endswith('@localfix.com'),
         },
     )
+    if not created:
+        changed = []
+        if role in ('Customer', 'Artisan') and profile.role != role:
+            profile.role = role
+            changed.append('role')
+        if not profile.google_id and google_sub:
+            profile.google_id = google_sub
+            changed.append('google_id')
+        if not profile.avatar_url and picture:
+            profile.avatar_url = picture
+            changed.append('avatar_url')
+        if changed:
+            profile.save(update_fields=changed)
+
     token = f'lf_g_{secrets.token_urlsafe(32)}'
     return Response({'success': True, 'token': token, 'user': UserProfileSerializer(profile).data})
+
+
+@api_view(['POST'])
+def verify_subscription_view(request):
+    """Activates paid Verification Badge for Weekly (7d), Monthly (30d), or Yearly (365d)."""
+    email = (request.data.get('email') or request.headers.get('X-User-Email') or '').strip().lower()
+    plan = (request.data.get('plan') or '').strip().lower()
+    if not email or plan not in ('weekly', 'monthly', 'yearly'):
+        return Response(
+            {'success': False, 'error': 'Valid email and plan (weekly, monthly, yearly) are required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    profile = UserProfile.objects.filter(email__iexact=email).first()
+    if not profile:
+        return Response({'success': False, 'error': 'User profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    days_map = {'weekly': 7, 'monthly': 30, 'yearly': 365}
+    now = timezone.now()
+    base_time = profile.verified_until if (profile.verified_until and profile.verified_until > now) else now
+    profile.verified_plan = plan
+    profile.verified_until = base_time + timedelta(days=days_map[plan])
+    profile.save(update_fields=['verified_plan', 'verified_until', 'updated_at'])
+
+    return Response({
+        'success': True,
+        'plan': plan,
+        'verified_until': profile.verified_until.isoformat(),
+        'user': UserProfileSerializer(profile).data,
+    })
 
 
 @api_view(['GET'])
@@ -392,9 +437,22 @@ def feed_view(request):
         if user_email:
             liked_ids = set(PostLike.objects.filter(user_email=user_email).values_list('post_id', flat=True))
         serialized = []
+        now = timezone.now()
+        profiles_by_email = {
+            p.email.lower(): p for p in UserProfile.objects.all()
+        }
         for post in posts:
             item = FeedPostSerializer(post).data
             item['liked_by_me'] = post.id in liked_ids
+            author_prof = profiles_by_email.get((post.author_email or '').lower())
+            is_company = bool(
+                author_prof and (author_prof.is_company_verified or author_prof.email.lower().endswith('@localfix.com'))
+            )
+            is_paid = bool(author_prof and author_prof.verified_until and author_prof.verified_until > now)
+            item['author_is_verified'] = is_company or is_paid
+            item['author_is_company'] = is_company
+            if author_prof and author_prof.avatar_url:
+                item['author_avatar'] = author_prof.avatar_url
             serialized.append(item)
         return Response({'success': True, 'posts': serialized})
 
@@ -563,12 +621,26 @@ def chat_conversations_view(request):
         other_name = m.receiver_name if m.sender_email.lower() == my_email else m.sender_name
         if other_email not in seen:
             profile = UserProfile.objects.filter(email__iexact=other_email).first()
+            preview = m.text
+            if not preview:
+                if m.message_type == 'image':
+                    preview = '📷 Photo'
+                elif m.message_type == 'voice':
+                    preview = f'🎤 Voice note ({m.audio_duration_sec}s)'
+            is_verified = False
+            if profile:
+                is_verified = bool(
+                    profile.is_company_verified
+                    or profile.email.lower().endswith('@localfix.com')
+                    or (profile.verified_until and profile.verified_until > timezone.now())
+                )
             seen[other_email] = {
                 'counterpart_email': other_email,
-                'counterpart_name': profile.name if profile else other_name,
+                'counterpart_name': 'Saved Messages (You)' if other_email == my_email else (profile.name if profile else other_name),
                 'counterpart_role': profile.trade if profile else 'Member',
                 'counterpart_avatar': profile.avatar_url if profile else '',
-                'last_message': m.text,
+                'counterpart_is_verified': is_verified,
+                'last_message': preview,
                 'last_message_time': m.created_at.isoformat(),
             }
 
@@ -591,9 +663,16 @@ def chat_messages_view(request):
     sender_email = (request.data.get('sender_email') or '').strip().lower()
     receiver_email = (request.data.get('receiver_email') or '').strip().lower()
     text = (request.data.get('text') or '').strip()
-    if not sender_email or not receiver_email or not text:
+    message_type = (request.data.get('message_type') or 'text').strip().lower()
+    media_url = (request.data.get('media_url') or '').strip()
+    try:
+        audio_duration_sec = int(request.data.get('audio_duration_sec') or 0)
+    except (TypeError, ValueError):
+        audio_duration_sec = 0
+
+    if not sender_email or not receiver_email or (not text and not media_url):
         return Response(
-            {'success': False, 'error': 'sender_email, receiver_email, and text are required.'},
+            {'success': False, 'error': 'sender_email, receiver_email, and text or media_url are required.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -603,6 +682,9 @@ def chat_messages_view(request):
         receiver_email=receiver_email,
         receiver_name=(request.data.get('receiver_name') or receiver_email.split('@')[0]).strip(),
         text=text,
+        message_type=message_type if message_type in ('text', 'image', 'voice') else 'text',
+        media_url=media_url,
+        audio_duration_sec=audio_duration_sec,
     )
     return Response({'success': True, 'message': ChatMessageSerializer(msg).data}, status=status.HTTP_201_CREATED)
 

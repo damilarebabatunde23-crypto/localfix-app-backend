@@ -31,6 +31,9 @@ class UserProfile(models.Model):
     currency_code = models.CharField(max_length=8, default='USD')
     language = models.CharField(max_length=40, default='English (Global)')
     is_dark_mode = models.BooleanField(default=False)
+    is_company_verified = models.BooleanField(default=False)
+    verified_plan = models.CharField(max_length=20, blank=True, default='')
+    verified_until = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -161,7 +164,10 @@ class ChatMessage(models.Model):
     sender_name = models.CharField(max_length=120)
     receiver_email = models.EmailField()
     receiver_name = models.CharField(max_length=120)
-    text = models.TextField()
+    text = models.TextField(blank=True, default='')
+    message_type = models.CharField(max_length=20, default='text')  # text, image, voice
+    media_url = models.TextField(blank=True, default='')
+    audio_duration_sec = models.PositiveIntegerField(default=0)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

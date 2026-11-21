@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 from .models import (
     UserProfile,
@@ -12,9 +13,18 @@ from .models import (
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    is_verified = serializers.SerializerMethodField()
+
     class Meta:
         model = UserProfile
         exclude = ['password_hash']
+
+    def get_is_verified(self, obj):
+        if obj.is_company_verified or (obj.email or '').strip().lower().endswith('@localfix.com'):
+            return True
+        if obj.verified_until and obj.verified_until > timezone.now():
+            return True
+        return False
 
 
 class PostCommentSerializer(serializers.ModelSerializer):

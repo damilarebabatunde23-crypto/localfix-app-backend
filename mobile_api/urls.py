@@ -11,6 +11,7 @@ urlpatterns = [
     path('auth/google/', views.auth_google, name='mobile-google-auth'),
     path('users/', views.users_list_view, name='mobile-users'),
     path('profile/', views.profile_view, name='mobile-profile'),
+    path('subscription/verify/', views.verify_subscription_view, name='mobile-verify-subscription'),
     path('media/upload/', views.media_upload_view, name='mobile-media-upload'),
     path('feed/', views.feed_view, name='mobile-feed'),
     path('feed/<int:post_id>/like/', views.feed_toggle_like, name='mobile-feed-like'),
