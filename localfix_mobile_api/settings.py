@@ -63,10 +63,13 @@ if os.environ.get('DATABASE_URL') and dj_database_url is not None:
     DATABASES = {
         'default': dj_database_url.config(
             default=os.environ.get('DATABASE_URL'),
-            conn_max_age=600,
+            conn_max_age=60,
+            conn_health_checks=True,
             ssl_require=os.environ.get('DATABASE_SSL', 'True') == 'True',
         )
     }
+    DATABASES['default'].setdefault('OPTIONS', {})
+    DATABASES['default']['OPTIONS']['connect_timeout'] = 10
 else:
     DATABASES = {
         'default': {
