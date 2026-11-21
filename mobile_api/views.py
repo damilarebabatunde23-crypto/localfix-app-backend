@@ -1,3 +1,4 @@
+from datetime import timedelta
 import json
 import mimetypes
 import os
@@ -25,6 +26,7 @@ from .models import (
     ReelComment,
     ChatMessage,
     EscrowContract,
+    CallSession,
 )
 from .serializers import (
     UserProfileSerializer,
@@ -633,3 +635,141 @@ def escrow_summary_view(request):
         'active_contracts': contracts.count(),
         'contracts': EscrowContractSerializer(contracts, many=True).data,
     })
+
+
+def _serialize_call(call):
+    try:
+        offer = json.loads(call.offer_sdp) if call.offer_sdp else None
+    except Exception:
+        offer = None
+    try:
+        answer = json.loads(call.answer_sdp) if call.answer_sdp else None
+    except Exception:
+        answer = None
+    try:
+        caller_cands = json.loads(call.caller_candidates) if call.caller_candidates else []
+    except Exception:
+        caller_cands = []
+    try:
+        callee_cands = json.loads(call.callee_candidates) if call.callee_candidates else []
+    except Exception:
+        callee_cands = []
+
+    return {
+        'id': call.id,
+        'caller_email': call.caller_email,
+        'caller_name': call.caller_name,
+        'caller_avatar': call.caller_avatar,
+        'callee_email': call.callee_email,
+        'callee_name': call.callee_name,
+        'callee_avatar': call.callee_avatar,
+        'is_video': call.is_video,
+        'status': call.status,
+        'offer': offer,
+        'answer': answer,
+        'caller_candidates': caller_cands,
+        'callee_candidates': callee_cands,
+        'created_at': call.created_at.isoformat(),
+    }
+
+
+@api_view(['POST'])
+def call_start_view(request):
+    caller_email = (request.data.get('caller_email') or '').strip().lower()
+    callee_email = (request.data.get('callee_email') or '').strip().lower()
+    offer = request.data.get('offer')
+    if not caller_email or not callee_email or not offer:
+        return Response(
+            {'success': False, 'error': 'caller_email, callee_email, and WebRTC offer are required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # End any previous stale ringing calls between the same peers
+    CallSession.objects.filter(
+        caller_email__iexact=caller_email,
+        callee_email__iexact=callee_email,
+        status='ringing',
+    ).update(status='ended')
+
+    call = CallSession.objects.create(
+        caller_email=caller_email,
+        caller_name=(request.data.get('caller_name') or caller_email.split('@')[0]).strip(),
+        caller_avatar=(request.data.get('caller_avatar') or '').strip(),
+        callee_email=callee_email,
+        callee_name=(request.data.get('callee_name') or callee_email.split('@')[0]).strip(),
+        callee_avatar=(request.data.get('callee_avatar') or '').strip(),
+        is_video=bool(request.data.get('is_video', True)),
+        status='ringing',
+        offer_sdp=json.dumps(offer),
+    )
+    return Response({'success': True, 'call': _serialize_call(call)}, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+def call_incoming_view(request):
+    email = (request.query_params.get('email') or '').strip().lower()
+    if not email:
+        return Response({'success': True, 'call': None})
+    cutoff = timezone.now() - timedelta(seconds=90)
+    call = CallSession.objects.filter(
+        callee_email__iexact=email,
+        status='ringing',
+        created_at__gte=cutoff,
+    ).first()
+    return Response({'success': True, 'call': _serialize_call(call) if call else None})
+
+
+@api_view(['GET'])
+def call_detail_view(request, call_id):
+    call = CallSession.objects.filter(id=call_id).first()
+    if not call:
+        return Response({'success': False, 'error': 'Call not found.'}, status=status.HTTP_404_NOT_FOUND)
+    return Response({'success': True, 'call': _serialize_call(call)})
+
+
+@api_view(['POST'])
+def call_answer_view(request, call_id):
+    call = CallSession.objects.filter(id=call_id).first()
+    if not call:
+        return Response({'success': False, 'error': 'Call not found.'}, status=status.HTTP_404_NOT_FOUND)
+    answer = request.data.get('answer')
+    if not answer:
+        return Response({'success': False, 'error': 'WebRTC answer is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    call.answer_sdp = json.dumps(answer)
+    call.status = 'accepted'
+    call.save(update_fields=['answer_sdp', 'status', 'updated_at'])
+    return Response({'success': True, 'call': _serialize_call(call)})
+
+
+@api_view(['POST'])
+def call_ice_view(request, call_id):
+    call = CallSession.objects.filter(id=call_id).first()
+    if not call:
+        return Response({'success': False, 'error': 'Call not found.'}, status=status.HTTP_404_NOT_FOUND)
+    role = (request.data.get('role') or 'caller').strip().lower()
+    candidate = request.data.get('candidate')
+    if not candidate:
+        return Response({'success': False, 'error': 'ICE candidate is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    field = 'caller_candidates' if role == 'caller' else 'callee_candidates'
+    try:
+        current = json.loads(getattr(call, field) or '[]')
+    except Exception:
+        current = []
+    current.append(candidate)
+    setattr(call, field, json.dumps(current))
+    call.save(update_fields=[field, 'updated_at'])
+    return Response({'success': True, 'count': len(current)})
+
+
+@api_view(['POST'])
+def call_end_view(request, call_id):
+    call = CallSession.objects.filter(id=call_id).first()
+    if not call:
+        return Response({'success': False, 'error': 'Call not found.'}, status=status.HTTP_404_NOT_FOUND)
+    new_status = (request.data.get('status') or 'ended').strip().lower()
+    if new_status not in ('ended', 'rejected'):
+        new_status = 'ended'
+    call.status = new_status
+    call.save(update_fields=['status', 'updated_at'])
+    return Response({'success': True, 'status': call.status})

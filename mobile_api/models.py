@@ -187,3 +187,30 @@ class EscrowContract(models.Model):
     amount_usd = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=40, default='In Escrow Custody')
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CallSession(models.Model):
+    STATUS_CHOICES = [
+        ('ringing', 'Ringing'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+        ('ended', 'Ended'),
+    ]
+
+    caller_email = models.EmailField(db_index=True)
+    caller_name = models.CharField(max_length=120)
+    caller_avatar = models.TextField(blank=True, default='')
+    callee_email = models.EmailField(db_index=True)
+    callee_name = models.CharField(max_length=120)
+    callee_avatar = models.TextField(blank=True, default='')
+    is_video = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ringing')
+    offer_sdp = models.TextField(blank=True, default='')
+    answer_sdp = models.TextField(blank=True, default='')
+    caller_candidates = models.TextField(blank=True, default='[]')
+    callee_candidates = models.TextField(blank=True, default='[]')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']

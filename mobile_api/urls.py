@@ -20,6 +20,12 @@ urlpatterns = [
     path('reels/<int:reel_id>/comments/', views.reel_comments_view, name='mobile-reel-comments'),
     path('chat/conversations/', views.chat_conversations_view, name='mobile-chat-conversations'),
     path('chat/messages/', views.chat_messages_view, name='mobile-chat-messages'),
+    path('calls/start/', views.call_start_view, name='mobile-call-start'),
+    path('calls/incoming/', views.call_incoming_view, name='mobile-call-incoming'),
+    path('calls/<int:call_id>/', views.call_detail_view, name='mobile-call-detail'),
+    path('calls/<int:call_id>/answer/', views.call_answer_view, name='mobile-call-answer'),
+    path('calls/<int:call_id>/ice/', views.call_ice_view, name='mobile-call-ice'),
+    path('calls/<int:call_id>/end/', views.call_end_view, name='mobile-call-end'),
     path('artisans/nearby/', views.nearby_artisans_view, name='mobile-nearby-artisans'),
     path('escrow/', views.escrow_summary_view, name='mobile-escrow'),
 ]
