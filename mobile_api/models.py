@@ -220,3 +220,40 @@ class CallSession(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class UserStory(models.Model):
+    author_email = models.EmailField(db_index=True)
+    author_name = models.CharField(max_length=120)
+    author_avatar = models.TextField(blank=True, default='')
+    author_role = models.CharField(max_length=40, default='Member')
+    media_url = models.TextField(blank=True, default='')
+    is_video = models.BooleanField(default=False)
+    caption = models.TextField(blank=True, default='')
+    location = models.CharField(max_length=160, blank=True, default='')
+    views_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class UserFollow(models.Model):
+    follower_email = models.EmailField(db_index=True)
+    following_email = models.EmailField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('follower_email', 'following_email')
+
+
+class TeamMember(models.Model):
+    employer_email = models.EmailField(db_index=True)
+    employee_email = models.EmailField(db_index=True)
+    label = models.CharField(max_length=80, blank=True, default='Team Employee')
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('employer_email', 'employee_email')
+        ordering = ['-added_at']

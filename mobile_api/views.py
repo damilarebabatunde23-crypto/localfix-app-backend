@@ -27,6 +27,9 @@ from .models import (
     ChatMessage,
     EscrowContract,
     CallSession,
+    UserStory,
+    UserFollow,
+    TeamMember,
 )
 from .serializers import (
     UserProfileSerializer,
@@ -286,10 +289,35 @@ def verify_subscription_view(request):
 @api_view(['GET'])
 def users_list_view(request):
     exclude_email = (request.query_params.get('excludeEmail') or '').strip().lower()
+    viewer_email = (request.query_params.get('viewerEmail') or exclude_email or '').strip().lower()
     qs = UserProfile.objects.all().order_by('-created_at')
     if exclude_email:
         qs = qs.exclude(email__iexact=exclude_email)
-    return Response({'success': True, 'users': UserProfileSerializer(qs, many=True).data})
+
+    following_set = set()
+    team_set = set()
+    if viewer_email:
+        following_set = set(
+            e.lower() for e in UserFollow.objects.filter(follower_email__iexact=viewer_email).values_list('following_email', flat=True)
+        )
+        team_set = set(
+            e.lower() for e in TeamMember.objects.filter(employer_email__iexact=viewer_email).values_list('employee_email', flat=True)
+        )
+
+    follower_counts = {}
+    for fe in UserFollow.objects.values_list('following_email', flat=True):
+        key = (fe or '').lower()
+        follower_counts[key] = follower_counts.get(key, 0) + 1
+
+    data = []
+    for u in qs:
+        item = UserProfileSerializer(u).data
+        em = u.email.lower()
+        item['is_following'] = em in following_set
+        item['in_my_team'] = em in team_set
+        item['followers_count'] = follower_counts.get(em, 0)
+        data.append(item)
+    return Response({'success': True, 'users': data})
 
 
 @api_view(['GET', 'PUT', 'PATCH'])
@@ -441,16 +469,34 @@ def feed_view(request):
         profiles_by_email = {
             p.email.lower(): p for p in UserProfile.objects.all()
         }
+        following_set = set()
+        team_set = set()
+        if user_email:
+            following_set = set(
+                e.lower() for e in UserFollow.objects.filter(follower_email__iexact=user_email).values_list('following_email', flat=True)
+            )
+            team_set = set(
+                e.lower() for e in TeamMember.objects.filter(employer_email__iexact=user_email).values_list('employee_email', flat=True)
+            )
+        follower_counts = {}
+        for fe in UserFollow.objects.values_list('following_email', flat=True):
+            k = (fe or '').lower()
+            follower_counts[k] = follower_counts.get(k, 0) + 1
+
         for post in posts:
             item = FeedPostSerializer(post).data
             item['liked_by_me'] = post.id in liked_ids
-            author_prof = profiles_by_email.get((post.author_email or '').lower())
+            em = (post.author_email or '').lower()
+            author_prof = profiles_by_email.get(em)
             is_company = bool(
                 author_prof and (author_prof.is_company_verified or author_prof.email.lower().endswith('@localfix.com'))
             )
             is_paid = bool(author_prof and author_prof.verified_until and author_prof.verified_until > now)
             item['author_is_verified'] = is_company or is_paid
             item['author_is_company'] = is_company
+            item['author_is_following'] = em in following_set
+            item['author_in_my_team'] = em in team_set
+            item['author_followers_count'] = follower_counts.get(em, 0)
             if author_prof and author_prof.avatar_url:
                 item['author_avatar'] = author_prof.avatar_url
             serialized.append(item)
@@ -855,3 +901,167 @@ def call_end_view(request, call_id):
     call.status = new_status
     call.save(update_fields=['status', 'updated_at'])
     return Response({'success': True, 'status': call.status})
+
+
+# ---- 24-HOUR WORK & JOB STORIES ----
+
+def _serialize_story(story, profiles_by_email, following_set, now):
+    em = (story.author_email or '').lower()
+    prof = profiles_by_email.get(em)
+    is_company = bool(prof and (prof.is_company_verified or prof.email.lower().endswith('@localfix.com')))
+    is_paid = bool(prof and prof.verified_until and prof.verified_until > now)
+    remaining_sec = max(0, int((story.expires_at - now).total_seconds()))
+    return {
+        'id': story.id,
+        'author_email': story.author_email,
+        'author_name': prof.name if prof else story.author_name,
+        'author_avatar': (prof.avatar_url if prof and prof.avatar_url else story.author_avatar),
+        'author_role': (prof.trade if prof and prof.trade else story.author_role),
+        'author_is_verified': is_company or is_paid,
+        'author_is_company': is_company,
+        'author_is_following': em in following_set,
+        'media_url': story.media_url,
+        'is_video': story.is_video,
+        'caption': story.caption,
+        'location': story.location,
+        'views_count': story.views_count,
+        'created_at': story.created_at.isoformat(),
+        'expires_at': story.expires_at.isoformat(),
+        'remaining_hours': max(1, remaining_sec // 3600),
+    }
+
+
+@api_view(['GET', 'POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def stories_view(request):
+    now = timezone.now()
+    if request.method == 'GET':
+        viewer_email = (request.query_params.get('email') or '').strip().lower()
+        active_stories = UserStory.objects.filter(expires_at__gt=now).order_by('-created_at')
+        profiles_by_email = {p.email.lower(): p for p in UserProfile.objects.all()}
+        following_set = set()
+        if viewer_email:
+            following_set = set(
+                e.lower() for e in UserFollow.objects.filter(follower_email__iexact=viewer_email).values_list('following_email', flat=True)
+            )
+        items = [_serialize_story(s, profiles_by_email, following_set, now) for s in active_stories]
+        return Response({'success': True, 'stories': items})
+
+    author_email = (request.data.get('author_email') or '').strip().lower()
+    media_url = (request.data.get('media_url') or '').strip()
+    caption = (request.data.get('caption') or '').strip()
+    if not author_email or (not media_url and not caption):
+        return Response(
+            {'success': False, 'error': 'author_email and either media_url or caption are required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    story = UserStory.objects.create(
+        author_email=author_email,
+        author_name=(request.data.get('author_name') or author_email.split('@')[0]).strip(),
+        author_avatar=(request.data.get('author_avatar') or '').strip(),
+        author_role=(request.data.get('author_role') or 'Member').strip(),
+        media_url=media_url,
+        is_video=bool(request.data.get('is_video', False)),
+        caption=caption,
+        location=(request.data.get('location') or '').strip(),
+        expires_at=now + timedelta(hours=24),
+    )
+    profiles_by_email = {p.email.lower(): p for p in UserProfile.objects.filter(email__iexact=author_email)}
+    return Response(
+        {'success': True, 'story': _serialize_story(story, profiles_by_email, set(), now)},
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(['POST'])
+def story_mark_view(request, story_id):
+    story = UserStory.objects.filter(id=story_id).first()
+    if not story:
+        return Response({'success': False, 'error': 'Story not found.'}, status=status.HTTP_404_NOT_FOUND)
+    story.views_count += 1
+    story.save(update_fields=['views_count'])
+    return Response({'success': True, 'views_count': story.views_count})
+
+
+@api_view(['DELETE'])
+def story_delete_view(request, story_id):
+    story = UserStory.objects.filter(id=story_id).first()
+    if not story:
+        return Response({'success': False, 'error': 'Story not found.'}, status=status.HTTP_404_NOT_FOUND)
+    story.delete()
+    return Response({'success': True})
+
+
+# ---- FOLLOW PRO ----
+
+@api_view(['POST'])
+def follow_toggle_view(request):
+    follower = (request.data.get('follower_email') or '').strip().lower()
+    following = (request.data.get('following_email') or '').strip().lower()
+    if not follower or not following or follower == following:
+        return Response(
+            {'success': False, 'error': 'Valid distinct follower_email and following_email are required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    existing = UserFollow.objects.filter(follower_email__iexact=follower, following_email__iexact=following).first()
+    if existing:
+        existing.delete()
+        is_following = False
+    else:
+        UserFollow.objects.create(follower_email=follower, following_email=following)
+        is_following = True
+
+    followers_count = UserFollow.objects.filter(following_email__iexact=following).count()
+    following_count = UserFollow.objects.filter(follower_email__iexact=follower).count()
+    return Response({
+        'success': True,
+        'is_following': is_following,
+        'followers_count': followers_count,
+        'following_count': following_count,
+    })
+
+
+# ---- EMPLOYER'S "MY TEAM" ----
+
+@api_view(['GET'])
+def team_list_view(request):
+    employer_email = (request.query_params.get('employer_email') or '').strip().lower()
+    if not employer_email:
+        return Response({'success': True, 'team': []})
+    members = TeamMember.objects.filter(employer_email__iexact=employer_email)
+    emails = [m.employee_email.lower() for m in members]
+    profiles = {p.email.lower(): p for p in UserProfile.objects.filter(email__in=emails)}
+    result = []
+    for m in members:
+        p = profiles.get(m.employee_email.lower())
+        if p:
+            item = UserProfileSerializer(p).data
+            item['team_label'] = m.label
+            item['in_my_team'] = True
+            result.append(item)
+    return Response({'success': True, 'count': len(result), 'team': result})
+
+
+@api_view(['POST'])
+def team_toggle_view(request):
+    employer = (request.data.get('employer_email') or '').strip().lower()
+    employee = (request.data.get('employee_email') or '').strip().lower()
+    label = (request.data.get('label') or 'Team Employee').strip()
+    if not employer or not employee or employer == employee:
+        return Response(
+            {'success': False, 'error': 'Valid distinct employer_email and employee_email are required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    existing = TeamMember.objects.filter(employer_email__iexact=employer, employee_email__iexact=employee).first()
+    if existing:
+        existing.delete()
+        in_team = False
+    else:
+        TeamMember.objects.create(employer_email=employer, employee_email=employee, label=label)
+        in_team = True
+
+    team_count = TeamMember.objects.filter(employer_email__iexact=employer).count()
+    return Response({'success': True, 'in_team': in_team, 'team_count': team_count})

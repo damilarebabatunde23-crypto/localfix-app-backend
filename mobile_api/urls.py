@@ -27,6 +27,12 @@ urlpatterns = [
     path('calls/<int:call_id>/answer/', views.call_answer_view, name='mobile-call-answer'),
     path('calls/<int:call_id>/ice/', views.call_ice_view, name='mobile-call-ice'),
     path('calls/<int:call_id>/end/', views.call_end_view, name='mobile-call-end'),
+    path('stories/', views.stories_view, name='mobile-stories'),
+    path('stories/<int:story_id>/view/', views.story_mark_view, name='mobile-story-view'),
+    path('stories/<int:story_id>/', views.story_delete_view, name='mobile-story-delete'),
+    path('follow/toggle/', views.follow_toggle_view, name='mobile-follow-toggle'),
+    path('team/', views.team_list_view, name='mobile-team-list'),
+    path('team/toggle/', views.team_toggle_view, name='mobile-team-toggle'),
     path('artisans/nearby/', views.nearby_artisans_view, name='mobile-nearby-artisans'),
     path('escrow/', views.escrow_summary_view, name='mobile-escrow'),
 ]
