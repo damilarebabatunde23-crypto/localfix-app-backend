@@ -1,0 +1,449 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | LocalFix Command Admin{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<meta name="color-scheme" content="light dark">
+<script>
+  try {
+    var lfStored = localStorage.getItem("color-scheme");
+    document.querySelector('meta[name="color-scheme"]').content = lfStored ?? "light dark";
+    if (lfStored === "dark" || lfStored === "light") {
+      document.documentElement.dataset.theme = lfStored;
+      localStorage.setItem("theme", lfStored);
+    } else {
+      document.documentElement.dataset.theme = "auto";
+      localStorage.setItem("theme", "auto");
+    }
+  } catch (e) {}
+</script>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  /* =========================================================================
+     LocalFix Command Admin — Royal Purple & White (Light) + Obsidian (Dark)
+     ========================================================================= */
+  :root {
+    color-scheme: light dark;
+    --lf-brand-light: #5B13EC;
+    --lf-brand-dark: #8B5CF6;
+    --lf-scrollbar-track-light: #F1EEFA;
+    --lf-scrollbar-thumb-light: #B8ABD9;
+    --lf-scrollbar-track-dark: #100C1E;
+    --lf-scrollbar-thumb-dark: #4B3D7A;
+
+    /* Django Admin Light (Crisp White & Royal Purple) overrides */
+    --primary: #5B13EC;
+    --secondary: #4310B8;
+    --accent: #EDE9FE;
+    --primary-fg: #FFFFFF;
+    --body-fg: #140F26;
+    --body-bg: #F7F6FB;
+    --body-quiet-color: #5E557B;
+    --body-medium-color: #3D3459;
+    --body-loud-color: #0D091A;
+    --header-color: #FFFFFF;
+    --header-branding-color: #FFFFFF;
+    --header-bg: linear-gradient(135deg, #4B0ED1 0%, #6D28D9 60%, #7C3AED 100%);
+    --header-link-color: #FFFFFF;
+    --breadcrumbs-fg: #5E557B;
+    --breadcrumbs-link-fg: #5B13EC;
+    --breadcrumbs-bg: #FFFFFF;
+    --link-fg: #5B13EC;
+    --link-hover-color: #4310B8;
+    --link-selected-fg: #7C3AED;
+    --hairline-color: #E6E1F5;
+    --border-color: #D7CEEE;
+    --darkened-bg: #FFFFFF;
+    --selected-bg: #F2ECFF;
+    --selected-row: #F5F0FF;
+    --button-fg: #FFFFFF;
+    --button-bg: #5B13EC;
+    --button-hover-bg: #4A0EC4;
+    --default-button-bg: #5B13EC;
+    --default-button-hover-bg: #4A0EC4;
+    --close-button-bg: #6B6285;
+    --close-button-hover-bg: #4F4668;
+    --delete-button-bg: #DC2626;
+    --delete-button-hover-bg: #B91C1C;
+    --object-tools-fg: #FFFFFF;
+    --object-tools-bg: #5B13EC;
+    --object-tools-hover-bg: #4A0EC4;
+    --message-success-bg: #ECFDF5;
+    --message-warning-bg: #FFFBEB;
+    --message-error-bg: #FEF2F2;
+    --lf-card-bg: #FFFFFF;
+    --lf-card-shadow: 0 10px 28px -14px rgba(32, 14, 78, 0.12), 0 1px 3px rgba(32, 14, 78, 0.05);
+
+    &:has(> head > meta[name="color-scheme"][content="dark"]) {
+      color-scheme: dark;
+    }
+    &:has(> head > meta[name="color-scheme"][content="light"]) {
+      color-scheme: light;
+    }
+  }
+
+  /* Dark Mode tokens via meta override, Django data-theme, or OS preference */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]):not(:has(> head > meta[name="color-scheme"][content="light"])) {
+      --primary: #7C3AED;
+      --secondary: #5B13EC;
+      --accent: #DDD6FE;
+      --primary-fg: #FFFFFF;
+      --body-fg: #F4F1FF;
+      --body-bg: #0A0714;
+      --body-quiet-color: #9E93BF;
+      --body-medium-color: #C7BEE2;
+      --body-loud-color: #FFFFFF;
+      --header-color: #FFFFFF;
+      --header-branding-color: #FFFFFF;
+      --header-bg: linear-gradient(135deg, #1B1138 0%, #31176B 55%, #4C1D95 100%);
+      --header-link-color: #F4F1FF;
+      --breadcrumbs-fg: #A89EC8;
+      --breadcrumbs-link-fg: #C4B5FD;
+      --breadcrumbs-bg: #130F23;
+      --link-fg: #A78BFA;
+      --link-hover-color: #DDD6FE;
+      --link-selected-fg: #C4B5FD;
+      --hairline-color: #261F42;
+      --border-color: #362C5E;
+      --darkened-bg: #130F23;
+      --selected-bg: #1E1738;
+      --selected-row: #221A40;
+      --button-fg: #FFFFFF;
+      --button-bg: #7C3AED;
+      --button-hover-bg: #8B5CF6;
+      --default-button-bg: #7C3AED;
+      --default-button-hover-bg: #8B5CF6;
+      --close-button-bg: #362C5E;
+      --close-button-hover-bg: #4A3D7E;
+      --delete-button-bg: #DC2626;
+      --delete-button-hover-bg: #EF4444;
+      --object-tools-fg: #FFFFFF;
+      --object-tools-bg: #7C3AED;
+      --object-tools-hover-bg: #8B5CF6;
+      --message-success-bg: #09261E;
+      --message-warning-bg: #2B1F0A;
+      --message-error-bg: #2C1016;
+      --lf-card-bg: #130F23;
+      --lf-card-shadow: 0 16px 38px -16px rgba(0, 0, 0, 0.65);
+    }
+  }
+
+  :root[data-theme="dark"],
+  :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+    --primary: #7C3AED;
+    --secondary: #5B13EC;
+    --accent: #DDD6FE;
+    --primary-fg: #FFFFFF;
+    --body-fg: #F4F1FF;
+    --body-bg: #0A0714;
+    --body-quiet-color: #9E93BF;
+    --body-medium-color: #C7BEE2;
+    --body-loud-color: #FFFFFF;
+    --header-color: #FFFFFF;
+    --header-branding-color: #FFFFFF;
+    --header-bg: linear-gradient(135deg, #1B1138 0%, #31176B 55%, #4C1D95 100%);
+    --header-link-color: #F4F1FF;
+    --breadcrumbs-fg: #A89EC8;
+    --breadcrumbs-link-fg: #C4B5FD;
+    --breadcrumbs-bg: #130F23;
+    --link-fg: #A78BFA;
+    --link-hover-color: #DDD6FE;
+    --link-selected-fg: #C4B5FD;
+    --hairline-color: #261F42;
+    --border-color: #362C5E;
+    --darkened-bg: #130F23;
+    --selected-bg: #1E1738;
+    --selected-row: #221A40;
+    --button-fg: #FFFFFF;
+    --button-bg: #7C3AED;
+    --button-hover-bg: #8B5CF6;
+    --default-button-bg: #7C3AED;
+    --default-button-hover-bg: #8B5CF6;
+    --close-button-bg: #362C5E;
+    --close-button-hover-bg: #4A3D7E;
+    --delete-button-bg: #DC2626;
+    --delete-button-hover-bg: #EF4444;
+    --object-tools-fg: #FFFFFF;
+    --object-tools-bg: #7C3AED;
+    --object-tools-hover-bg: #8B5CF6;
+    --message-success-bg: #09261E;
+    --message-warning-bg: #2B1F0A;
+    --message-error-bg: #2C1016;
+    --lf-card-bg: #130F23;
+    --lf-card-shadow: 0 16px 38px -16px rgba(0, 0, 0, 0.65);
+  }
+
+  @supports (color: light-dark(white, black)) {
+    html {
+      accent-color: light-dark(var(--lf-brand-light), var(--lf-brand-dark));
+      scrollbar-color: light-dark(var(--lf-scrollbar-thumb-light), var(--lf-scrollbar-thumb-dark))
+                       light-dark(var(--lf-scrollbar-track-light), var(--lf-scrollbar-track-dark));
+    }
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  #header {
+    background: var(--header-bg);
+    box-shadow: 0 8px 28px -10px rgba(91, 19, 236, 0.45);
+    padding: 12px 28px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .lf-admin-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 11px;
+    text-decoration: none;
+    color: #FFFFFF !important;
+  }
+
+  .lf-admin-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    display: inline-grid;
+    place-items: center;
+    color: #FFFFFF;
+  }
+
+  .lf-admin-brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+  }
+
+  .lf-admin-brand-text strong {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #FFFFFF;
+  }
+
+  .lf-admin-brand-text small {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 700;
+  }
+
+  .lf-portal-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: #FFFFFF !important;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none !important;
+    margin-right: 10px;
+    transition: background-color 0.15s ease;
+  }
+
+  .lf-portal-pill:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .lf-theme-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    margin-left: 10px;
+    vertical-align: middle;
+  }
+
+  .lf-theme-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 999px;
+    cursor: pointer;
+    line-height: 1.2;
+  }
+
+  .lf-theme-btn[aria-pressed="true"] {
+    background: #FFFFFF;
+    color: #5B13EC;
+  }
+
+  /* Hide Django's default theme toggle button so our synced 3-state control is the single source of truth */
+  .theme-toggle {
+    display: none !important;
+  }
+
+  /* Elevated modern cards & tables */
+  div.breadcrumbs {
+    border-bottom: 1px solid var(--hairline-color);
+    padding: 12px 28px;
+    font-weight: 600;
+  }
+
+  .module {
+    background: var(--lf-card-bg);
+    border: 1px solid var(--hairline-color);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--lf-card-shadow);
+    margin-bottom: 22px;
+  }
+
+  .module h2, .module caption, .inline-group h2 {
+    background: linear-gradient(135deg, #5B13EC 0%, #7C3AED 100%);
+    color: #FFFFFF;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    padding: 11px 16px;
+  }
+
+  #changelist-filter {
+    background: var(--lf-card-bg);
+    border: 1px solid var(--hairline-color);
+    border-radius: 16px;
+    box-shadow: var(--lf-card-shadow);
+    overflow: hidden;
+  }
+
+  #changelist-filter h2 {
+    background: linear-gradient(135deg, #5B13EC 0%, #7C3AED 100%);
+    padding: 11px 16px;
+    font-weight: 800;
+  }
+
+  .button, input[type=submit], input[type=button], .submit-row input, a.button {
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    padding: 9px 16px !important;
+  }
+
+  .object-tools a:link, .object-tools a:visited {
+    border-radius: 999px;
+    font-weight: 700;
+    padding: 6px 14px;
+  }
+
+  input[type=text], input[type=password], input[type=email], input[type=url], input[type=number], textarea, select {
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    padding: 8px 10px;
+  }
+</style>
+{% endblock %}
+
+{% block branding %}
+<div id="site-name">
+  <a class="lf-admin-brand" href="{% url 'admin:index' %}">
+    <span class="lf-admin-logo" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+      </svg>
+    </span>
+    <span class="lf-admin-brand-text">
+      <strong>LocalFix Command Admin</strong>
+      <small>Global Operations &amp; Safety</small>
+    </span>
+  </a>
+</div>
+{% endblock %}
+
+{% block usertools %}
+<div id="user-tools">
+  <a class="lf-portal-pill" href="/">← Backend Portal</a>
+  {% if has_permission %}
+    {% block welcome-msg %}
+      Welcome, <strong>{% firstof user.get_short_name user.get_username %}</strong>.
+    {% endblock %}
+    {% block userlinks %}
+      {% if user.is_active and user.is_staff %}
+        {% url 'django-admindocs-docroot' as docsroot %}
+        {% if docsroot %}
+          <a href="{{ docsroot }}">Documentation</a> /
+        {% endif %}
+      {% endif %}
+      {% if user.has_usable_password %}
+        <a href="{% url 'admin:password_change' %}">Change password</a> /
+      {% endif %}
+      <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit">Log out</button>
+      </form>
+    {% endblock %}
+  {% endif %}
+  <span class="lf-theme-group" role="group" aria-label="Admin theme">
+    <button type="button" class="lf-theme-btn" data-lf-theme="light" aria-pressed="false">☀ White</button>
+    <button type="button" class="lf-theme-btn" data-lf-theme="dark" aria-pressed="false">🌙 Dark</button>
+    <button type="button" class="lf-theme-btn" data-lf-theme="system" aria-pressed="false">Auto</button>
+  </span>
+</div>
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script>
+  (function () {
+    const STORAGE_KEY = 'color-scheme';
+    const meta = document.querySelector('meta[name="color-scheme"]');
+    const btns = Array.from(document.querySelectorAll('.lf-theme-btn'));
+
+    function currentChoice() {
+      try {
+        const v = localStorage.getItem(STORAGE_KEY);
+        if (v === 'light' || v === 'dark') return v;
+      } catch (e) {}
+      return 'system';
+    }
+
+    function applyTheme(choice, persist) {
+      const metaVal = (choice === 'light' || choice === 'dark') ? choice : 'light dark';
+      const djTheme = (choice === 'light' || choice === 'dark') ? choice : 'auto';
+      if (meta) meta.content = metaVal;
+      document.documentElement.dataset.theme = djTheme;
+
+      if (persist) {
+        try {
+          if (choice === 'light' || choice === 'dark') {
+            localStorage.setItem(STORAGE_KEY, choice);
+          } else {
+            localStorage.removeItem(STORAGE_KEY);
+          }
+          localStorage.setItem('theme', djTheme);
+        } catch (e) {}
+      }
+
+      btns.forEach((b) => {
+        b.setAttribute('aria-pressed', b.dataset.lfTheme === choice ? 'true' : 'false');
+      });
+    }
+
+    btns.forEach((b) => {
+      b.addEventListener('click', () => applyTheme(b.dataset.lfTheme, true));
+    });
+
+    window.addEventListener('storage', (ev) => {
+      if (ev.key === STORAGE_KEY) applyTheme(currentChoice(), false);
+    });
+
+    applyTheme(currentChoice(), false);
+  })();
+</script>
+{% endblock %}

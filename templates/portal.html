@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LocalFix Cloud — Backend Gateway &amp; Admin Portal</title>
+  <meta name="color-scheme" content="light dark">
+  <script>try{document.querySelector('meta[name="color-scheme"]').content=localStorage.getItem("color-scheme")??"light dark";}catch(e){}</script>
+  <style>
+    /* =========================================================================
+       LocalFix Backend Gateway — Modern Light (White) & Dark Mode Token System
+       ========================================================================= */
+    :root {
+      color-scheme: light dark;
+
+      /* Raw Light (Crisp White & Royal Purple) Palette */
+      --bg-canvas-light: #F7F6FB;
+      --bg-surface-light: #FFFFFF;
+      --bg-surface-alt-light: #F2EFFB;
+      --bg-elevated-light: rgba(255, 255, 255, 0.88);
+      --border-subtle-light: #E6E1F5;
+      --border-strong-light: #D0C6EE;
+      --text-primary-light: #130E24;
+      --text-secondary-light: #564D73;
+      --text-muted-light: #7B7296;
+      --brand-light: #5B13EC;
+      --brand-hover-light: #4A0EC4;
+      --brand-soft-light: rgba(91, 19, 236, 0.09);
+      --brand-glow-light: rgba(91, 19, 236, 0.16);
+      --success-light: #059669;
+      --success-bg-light: rgba(5, 150, 105, 0.11);
+      --warning-light: #D97706;
+      --warning-bg-light: rgba(217, 119, 6, 0.12);
+      --danger-light: #DC2626;
+      --danger-bg-light: rgba(220, 38, 38, 0.10);
+      --info-light: #0284C7;
+      --info-bg-light: rgba(2, 132, 199, 0.10);
+      --shadow-card-light: 0 10px 30px -12px rgba(32, 14, 78, 0.10), 0 1px 3px rgba(32, 14, 78, 0.05);
+      --shadow-hero-light: 0 24px 60px -20px rgba(91, 19, 236, 0.22);
+      --scrollbar-track-light: #F1EEFA;
+      --scrollbar-thumb-light: #B8ABD9;
+
+      /* Raw Dark (Deep Obsidian & Electric Violet) Palette */
+      --bg-canvas-dark: #0A0714;
+      --bg-surface-dark: #130F23;
+      --bg-surface-alt-dark: #1B1531;
+      --bg-elevated-dark: rgba(19, 15, 35, 0.86);
+      --border-subtle-dark: #272044;
+      --border-strong-dark: #3B3066;
+      --text-primary-dark: #F6F4FF;
+      --text-secondary-dark: #B5ABD2;
+      --text-muted-dark: #857AA6;
+      --brand-dark: #8B5CF6;
+      --brand-hover-dark: #9D74FF;
+      --brand-soft-dark: rgba(139, 92, 246, 0.16);
+      --brand-glow-dark: rgba(139, 92, 246, 0.28);
+      --success-dark: #34D399;
+      --success-bg-dark: rgba(52, 211, 153, 0.14);
+      --warning-dark: #FBBF24;
+      --warning-bg-dark: rgba(251, 191, 36, 0.14);
+      --danger-dark: #F87171;
+      --danger-bg-dark: rgba(248, 113, 113, 0.15);
+      --info-dark: #38BDF8;
+      --info-bg-dark: rgba(56, 189, 248, 0.15);
+      --shadow-card-dark: 0 16px 38px -14px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+      --shadow-hero-dark: 0 26px 70px -18px rgba(91, 19, 236, 0.45);
+      --scrollbar-track-dark: #100C1E;
+      --scrollbar-thumb-dark: #4B3D7A;
+
+      /* Fallback defaults (Light) */
+      --bg-canvas: var(--bg-canvas-light);
+      --bg-surface: var(--bg-surface-light);
+      --bg-surface-alt: var(--bg-surface-alt-light);
+      --bg-elevated: var(--bg-elevated-light);
+      --border-subtle: var(--border-subtle-light);
+      --border-strong: var(--border-strong-light);
+      --text-primary: var(--text-primary-light);
+      --text-secondary: var(--text-secondary-light);
+      --text-muted: var(--text-muted-light);
+      --brand: var(--brand-light);
+      --brand-hover: var(--brand-hover-light);
+      --brand-soft: var(--brand-soft-light);
+      --brand-glow: var(--brand-glow-light);
+      --success: var(--success-light);
+      --success-bg: var(--success-bg-light);
+      --warning: var(--warning-light);
+      --warning-bg: var(--warning-bg-light);
+      --danger: var(--danger-light);
+      --danger-bg: var(--danger-bg-light);
+      --info: var(--info-light);
+      --info-bg: var(--info-bg-light);
+      --shadow-card: var(--shadow-card-light);
+      --shadow-hero: var(--shadow-hero-light);
+      --scrollbar-track: var(--scrollbar-track-light);
+      --scrollbar-thumb: var(--scrollbar-thumb-light);
+
+      &:has(> head > meta[name="color-scheme"][content="dark"]) {
+        color-scheme: dark;
+      }
+      &:has(> head > meta[name="color-scheme"][content="light"]) {
+        color-scheme: light;
+      }
+    }
+
+    /* Fallback dark values for browsers without light-dark() */
+    @media (prefers-color-scheme: dark) {
+      :root:not(:has(> head > meta[name="color-scheme"][content="light"])) {
+        --bg-canvas: var(--bg-canvas-dark);
+        --bg-surface: var(--bg-surface-dark);
+        --bg-surface-alt: var(--bg-surface-alt-dark);
+        --bg-elevated: var(--bg-elevated-dark);
+        --border-subtle: var(--border-subtle-dark);
+        --border-strong: var(--border-strong-dark);
+        --text-primary: var(--text-primary-dark);
+        --text-secondary: var(--text-secondary-dark);
+        --text-muted: var(--text-muted-dark);
+        --brand: var(--brand-dark);
+        --brand-hover: var(--brand-hover-dark);
+        --brand-soft: var(--brand-soft-dark);
+        --brand-glow: var(--brand-glow-dark);
+        --success: var(--success-dark);
+        --success-bg: var(--success-bg-dark);
+        --warning: var(--warning-dark);
+        --warning-bg: var(--warning-bg-dark);
+        --danger: var(--danger-dark);
+        --danger-bg: var(--danger-bg-dark);
+        --info: var(--info-dark);
+        --info-bg: var(--info-bg-dark);
+        --shadow-card: var(--shadow-card-dark);
+        --shadow-hero: var(--shadow-hero-dark);
+        --scrollbar-track: var(--scrollbar-track-dark);
+        --scrollbar-thumb: var(--scrollbar-thumb-dark);
+      }
+    }
+
+    :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+      --bg-canvas: var(--bg-canvas-dark);
+      --bg-surface: var(--bg-surface-dark);
+      --bg-surface-alt: var(--bg-surface-alt-dark);
+      --bg-elevated: var(--bg-elevated-dark);
+      --border-subtle: var(--border-subtle-dark);
+      --border-strong: var(--border-strong-dark);
+      --text-primary: var(--text-primary-dark);
+      --text-secondary: var(--text-secondary-dark);
+      --text-muted: var(--text-muted-dark);
+      --brand: var(--brand-dark);
+      --brand-hover: var(--brand-hover-dark);
+      --brand-soft: var(--brand-soft-dark);
+      --brand-glow: var(--brand-glow-dark);
+      --success: var(--success-dark);
+      --success-bg: var(--success-bg-dark);
+      --warning: var(--warning-dark);
+      --warning-bg: var(--warning-bg-dark);
+      --danger: var(--danger-dark);
+      --danger-bg: var(--danger-bg-dark);
+      --info: var(--info-dark);
+      --info-bg: var(--info-bg-dark);
+      --shadow-card: var(--shadow-card-dark);
+      --shadow-hero: var(--shadow-hero-dark);
+      --scrollbar-track: var(--scrollbar-track-dark);
+      --scrollbar-thumb: var(--scrollbar-thumb-dark);
+    }
+
+    /* Native modern light-dark() resolution */
+    @supports (color: light-dark(white, black)) {
+      :root {
+        --bg-canvas: light-dark(var(--bg-canvas-light), var(--bg-canvas-dark));
+        --bg-surface: light-dark(var(--bg-surface-light), var(--bg-surface-dark));
+        --bg-surface-alt: light-dark(var(--bg-surface-alt-light), var(--bg-surface-alt-dark));
+        --bg-elevated: light-dark(var(--bg-elevated-light), var(--bg-elevated-dark));
+        --border-subtle: light-dark(var(--border-subtle-light), var(--border-subtle-dark));
+        --border-strong: light-dark(var(--border-strong-light), var(--border-strong-dark));
+        --text-primary: light-dark(var(--text-primary-light), var(--text-primary-dark));
+        --text-secondary: light-dark(var(--text-secondary-light), var(--text-secondary-dark));
+        --text-muted: light-dark(var(--text-muted-light), var(--text-muted-dark));
+        --brand: light-dark(var(--brand-light), var(--brand-dark));
+        --brand-hover: light-dark(var(--brand-hover-light), var(--brand-hover-dark));
+        --brand-soft: light-dark(var(--brand-soft-light), var(--brand-soft-dark));
+        --brand-glow: light-dark(var(--brand-glow-light), var(--brand-glow-dark));
+        --success: light-dark(var(--success-light), var(--success-dark));
+        --success-bg: light-dark(var(--success-bg-light), var(--success-bg-dark));
+        --warning: light-dark(var(--warning-light), var(--warning-dark));
+        --warning-bg: light-dark(var(--warning-bg-light), var(--warning-bg-dark));
+        --danger: light-dark(var(--danger-light), var(--danger-dark));
+        --danger-bg: light-dark(var(--danger-bg-light), var(--danger-bg-dark));
+        --info: light-dark(var(--info-light), var(--info-dark));
+        --info-bg: light-dark(var(--info-bg-light), var(--info-bg-dark));
+        --scrollbar-track: light-dark(var(--scrollbar-track-light), var(--scrollbar-track-dark));
+        --scrollbar-thumb: light-dark(var(--scrollbar-thumb-light), var(--scrollbar-thumb-dark));
+      }
+    }
+
+    html {
+      accent-color: var(--brand);
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      line-height: 1.55;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      background-image:
+        radial-gradient(900px 420px at 12% -6%, var(--brand-glow), transparent 62%),
+        radial-gradient(700px 360px at 92% 4%, var(--brand-soft), transparent 60%);
+      background-attachment: fixed;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .container {
+      width: min(1240px, 100% - 2rem);
+      margin-inline: auto;
+    }
+
+    /* =========================================================================
+       Sticky Header
+       ========================================================================= */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 70px;
+      padding-block: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.78rem;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, #5B13EC 0%, #8B5CF6 100%);
+      display: grid;
+      place-items: center;
+      color: #FFFFFF;
+      box-shadow: 0 8px 20px -6px rgba(91, 19, 236, 0.55);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+    }
+
+    .brand-title strong {
+      font-size: 1.08rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-title span {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.38rem 0.78rem;
+      border-radius: 999px;
+      background: var(--success-bg);
+      color: var(--success);
+      font-size: 0.78rem;
+      font-weight: 700;
+      border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 25%, transparent);
+    }
+
+    /* Tri-state Segmented Theme Switcher */
+    .theme-switcher {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px;
+      border-radius: 999px;
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-subtle);
+      gap: 2px;
+    }
+
+    .theme-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--text-secondary);
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.38rem 0.72rem;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .theme-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .theme-btn[aria-pressed="true"] {
+      background: var(--bg-surface);
+      color: var(--brand);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.15rem;
+      border-radius: 12px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: transform 0.14s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #5B13EC 0%, #7C3AED 100%);
+      color: #FFFFFF;
+      box-shadow: 0 10px 24px -8px rgba(91, 19, 236, 0.6);
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.06);
+      box-shadow: 0 14px 28px -8px rgba(91, 19, 236, 0.72);
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--brand);
+      color: var(--brand);
+    }
+
+    .btn-lg {
+      padding: 0.88rem 1.5rem;
+      font-size: 0.96rem;
+      border-radius: 14px;
+    }
+
+    /* =========================================================================
+       Hero Gateway Card
+       ========================================================================= */
+    main {
+      padding-block: 2.2rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 26px;
+      padding: clamp(1.75rem, 4vw, 3.25rem);
+      box-shadow: var(--shadow-hero);
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+      gap: 2.2rem;
+      align-items: center;
+    }
+
+    @media (max-width: 920px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      background: radial-gradient(650px 300px at 96% 0%, var(--brand-soft), transparent 65%);
+      pointer-events: none;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.34rem 0.78rem;
+      border-radius: 999px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 {
+      margin: 0 0 0.85rem;
+      font-size: clamp(1.9rem, 3.6vw, 2.95rem);
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .hero h1 .accent {
+      background: linear-gradient(120deg, #5B13EC 0%, #9333EA 55%, #A855F7 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero p {
+      margin: 0 0 1.65rem;
+      color: var(--text-secondary);
+      font-size: 1.02rem;
+      max-width: 60ch;
+    }
+
+    .hero-cta-row {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .hero-side-card {
+      position: relative;
+      z-index: 1;
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 1.35rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .side-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .side-card-head h2 {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .badge-mini {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.22rem 0.6rem;
+      border-radius: 999px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    .checkpoint-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .checkpoint {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.68rem 0.85rem;
+      border-radius: 13px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.84rem;
+    }
+
+    .checkpoint-label {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      font-weight: 700;
+    }
+
+    .pill-ok {
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 0.2rem 0.56rem;
+      border-radius: 999px;
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .pill-warn {
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 0.2rem 0.56rem;
+      border-radius: 999px;
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .health-output {
+      display: none;
+      margin-top: 0.35rem;
+      padding: 0.75rem 0.9rem;
+      border-radius: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .health-output.visible {
+      display: block;
+    }
+
+    /* =========================================================================
+       Section Headings & KPI Metrics Grid
+       ========================================================================= */
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .section-head p {
+      margin: 0.2rem 0 0;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 1.25rem 1.35rem;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      transition: transform 0.16s ease, border-color 0.16s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-strong);
+    }
+
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .kpi-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    .kpi-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      display: grid;
+      place-items: center;
+      font-size: 1.05rem;
+      flex-shrink: 0;
+    }
+
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    .kpi-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* =========================================================================
+       Admin Quick-Access Shortcuts Grid
+       ========================================================================= */
+    .shortcut-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.9rem;
+    }
+
+    .shortcut-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 1.1rem 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.9rem;
+      box-shadow: var(--shadow-card);
+      transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .shortcut-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--brand);
+    }
+
+    .shortcut-left {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      min-width: 0;
+    }
+
+    .shortcut-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-subtle);
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .shortcut-meta strong {
+      display: block;
+      font-size: 0.92rem;
+      font-weight: 800;
+    }
+
+    .shortcut-meta span {
+      display: block;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    .arrow {
+      color: var(--brand);
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+
+    /* =========================================================================
+       Two-Column Activity & API Directory
+       ========================================================================= */
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 22px;
+      padding: 1.4rem;
+      box-shadow: var(--shadow-card);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .panel-header h3 {
+      margin: 0;
+      font-size: 1.02rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.7rem 0.6rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    th {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 800;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .role-tag {
+      display: inline-block;
+      padding: 0.16rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .role-artisan {
+      background: var(--brand-soft);
+      color: var(--brand);
+    }
+
+    .role-client {
+      background: var(--info-bg);
+      color: var(--info);
+    }
+
+    .mod-tag {
+      display: inline-block;
+      padding: 0.16rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .mod-warn {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .mod-lock {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    /* API Directory */
+    .api-search {
+      width: 100%;
+      max-width: 280px;
+      padding: 0.52rem 0.85rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-surface-alt);
+      color: var(--text-primary);
+      font: inherit;
+      font-size: 0.84rem;
+    }
+
+    .api-search:focus {
+      outline: 2px solid var(--brand);
+      outline-offset: 1px;
+    }
+
+    .api-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(275px, 1fr));
+      gap: 0.7rem;
+    }
+
+    .api-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+      padding: 0.72rem 0.88rem;
+      border-radius: 13px;
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-subtle);
+      transition: border-color 0.14s ease;
+    }
+
+    .api-item:hover {
+      border-color: var(--brand);
+    }
+
+    .api-path {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: block;
+    }
+
+    .api-desc {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      display: block;
+      margin-top: 2px;
+    }
+
+    .method-pill {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.18rem 0.48rem;
+      border-radius: 7px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      flex-shrink: 0;
+    }
+
+    .empty-note {
+      padding: 1.25rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.86rem;
+      background: var(--bg-surface-alt);
+      border-radius: 14px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      padding-block: 1.5rem 2.4rem;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.1rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a:hover {
+      color: var(--brand);
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="/">
+        <div class="brand-logo" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+        </div>
+        <div class="brand-title">
+          <strong>LocalFix Cloud</strong>
+          <span>Global Backend Gateway</span>
+        </div>
+      </a>
+
+      <div class="topbar-actions">
+        <span class="status-pill">
+          <span class="status-dot" aria-hidden="true"></span>
+          {{ db_engine_label }} · Online
+        </span>
+
+        <div class="theme-switcher" role="group" aria-label="Color theme">
+          <button type="button" class="theme-btn" data-theme-choice="light" aria-pressed="false" title="Use White (Light) Mode">
+            <span aria-hidden="true">☀️</span> White
+          </button>
+          <button type="button" class="theme-btn" data-theme-choice="dark" aria-pressed="false" title="Use Dark Mode">
+            <span aria-hidden="true">🌙</span> Dark
+          </button>
+          <button type="button" class="theme-btn" data-theme-choice="system" aria-pressed="false" title="Follow Device System Theme">
+            <span aria-hidden="true">💻</span> <span id="system-theme-label">System</span>
+          </button>
+        </div>
+
+        <a class="btn btn-primary" href="/admin/">
+          Enter Admin Panel →
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Hero Gateway Section -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-content">
+        <div class="eyebrow">
+          <span>⚡</span> LocalFix Production Infrastructure
+        </div>
+        <h1 id="hero-title">
+          Welcome to the <span class="accent">LocalFix Backend</span> Command Portal
+        </h1>
+        <p>
+          Centralized cloud gateway powering the LocalFix global mobile network — connecting verified Artisans &amp; Clients with real-time GPS dispatch, 2-way WebRTC audio/video calling, 24-hour work stories, AI assistance, and strict Fixes-Only safety moderation.
+        </p>
+        <div class="hero-cta-row">
+          <a class="btn btn-primary btn-lg" href="/admin/">
+            🔐 Enter Django Admin Console →
+          </a>
+          <button type="button" class="btn btn-secondary btn-lg" id="health-ping-btn">
+            🩺 Run Live Health Check
+          </button>
+          <a class="btn btn-secondary btn-lg" href="/?format=json">
+            { } Raw JSON Spec
+          </a>
+        </div>
+      </div>
+
+      <aside class="hero-side-card" aria-label="Live System Readiness">
+        <div class="side-card-head">
+          <h2>System Readiness &amp; Guards</h2>
+          <span class="badge-mini">Django {{ django_version }}</span>
+        </div>
+        <div class="checkpoint-list">
+          <div class="checkpoint">
+            <span class="checkpoint-label">🗄️ Primary Database</span>
+            <span class="pill-ok">{{ db_engine_label }}</span>
+          </div>
+          <div class="checkpoint">
+            <span class="checkpoint-label">🛡️ Fixes-Only Moderation</span>
+            <span class="pill-ok">Active (7d / 30d Lock)</span>
+          </div>
+          <div class="checkpoint">
+            <span class="checkpoint-label">📞 WebRTC &amp; Range Media</span>
+            <span class="pill-ok">206 Streaming Ready</span>
+          </div>
+          <div class="checkpoint">
+            <span class="checkpoint-label">💳 Real Payment Gateways</span>
+            {% if payment_gateway_ready %}
+              <span class="pill-ok">{{ payment_gateway_label }}</span>
+            {% else %}
+              <span class="pill-warn">Keys Pending on Render</span>
+            {% endif %}
+          </div>
+          <div class="checkpoint">
+            <span class="checkpoint-label">✨ LocalFix AI Engine</span>
+            {% if ai_gemini_ready %}
+              <span class="pill-ok">Gemini + Knowledge Base</span>
+            {% else %}
+              <span class="pill-ok">Built-in Knowledge AI</span>
+            {% endif %}
+          </div>
+        </div>
+        <pre id="health-output" class="health-output" aria-live="polite"></pre>
+      </aside>
+    </section>
+
+    <!-- Live Platform Telemetry -->
+    <section aria-labelledby="telemetry-heading">
+      <div class="section-head">
+        <div>
+          <h2 id="telemetry-heading">Live Platform Telemetry</h2>
+          <p>Real-time metrics read directly from your {{ db_engine_label }} database before entering Admin.</p>
+        </div>
+        <a class="btn btn-secondary" href="/admin/mobile_api/userprofile/">Manage Members →</a>
+      </div>
+
+      <div class="kpi-grid">
+        <article class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">Registered Members</span>
+            <span class="kpi-icon" aria-hidden="true">👥</span>
+          </div>
+          <div class="kpi-value">{{ stats.users_total }}</div>
+          <div class="kpi-sub">{{ stats.artisans_total }} Artisans · {{ stats.clients_total }} Clients</div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">Verified Badges</span>
+            <span class="kpi-icon" aria-hidden="true">✅</span>
+          </div>
+          <div class="kpi-value">{{ stats.verified_total }}</div>
+          <div class="kpi-sub">{{ stats.company_verified }} Company · {{ stats.paid_verified }} Paid Active</div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">Fix Posts &amp; Watch Videos</span>
+            <span class="kpi-icon" aria-hidden="true">🎬</span>
+          </div>
+          <div class="kpi-value">{{ stats.posts_total }}</div>
+          <div class="kpi-sub">{{ stats.reels_total }} Watch Reels · {{ stats.comments_total }} Comments</div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">Active 24h Stories</span>
+            <span class="kpi-icon" aria-hidden="true">✨</span>
+          </div>
+          <div class="kpi-value">{{ stats.active_stories }}</div>
+          <div class="kpi-sub">{{ stats.stories_total }} Total Stories Published</div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">Chat Messages</span>
+            <span class="kpi-icon" aria-hidden="true">💬</span>
+          </div>
+          <div class="kpi-value">{{ stats.messages_total }}</div>
+          <div class="kpi-sub">{{ stats.messages_unread }} Unread · {{ stats.calls_total }} Calls Logged</div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">Live GPS Check-ins</span>
+            <span class="kpi-icon" aria-hidden="true">📍</span>
+          </div>
+          <div class="kpi-value">{{ stats.gps_logs_total }}</div>
+          <div class="kpi-sub">{{ stats.team_links_total }} Employer-Employee Team Links</div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">Moderation &amp; Safety</span>
+            <span class="kpi-icon" aria-hidden="true">🛡️</span>
+          </div>
+          <div class="kpi-value">{{ stats.moderation_total }}</div>
+          <div class="kpi-sub">{{ stats.locked_users }} Account(s) Currently Locked</div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">DB Media Vault</span>
+            <span class="kpi-icon" aria-hidden="true">☁️</span>
+          </div>
+          <div class="kpi-value">{{ stats.media_count }}</div>
+          <div class="kpi-sub">{{ stats.media_mb }} MB Persisted · {{ stats.notifications_total }} Alerts</div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Direct Admin Module Gateways -->
+    <section aria-labelledby="shortcuts-heading">
+      <div class="section-head">
+        <div>
+          <h2 id="shortcuts-heading">Admin Control Modules</h2>
+          <p>Jump straight into any LocalFix management section inside Django Admin.</p>
+        </div>
+      </div>
+
+      <div class="shortcut-grid">
+        <a class="shortcut-card" href="/admin/mobile_api/userprofile/">
+          <div class="shortcut-left">
+            <div class="shortcut-badge" aria-hidden="true">👤</div>
+            <div class="shortcut-meta">
+              <strong>Users &amp; Badges</strong>
+              <span>Verify, unlock &amp; audit roles</span>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="shortcut-card" href="/admin/mobile_api/contentmoderationlog/">
+          <div class="shortcut-left">
+            <div class="shortcut-badge" aria-hidden="true">🚨</div>
+            <div class="shortcut-meta">
+              <strong>Moderation Logs</strong>
+              <span>Warnings &amp; 7d/30d locks</span>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="shortcut-card" href="/admin/mobile_api/paymenttransaction/">
+          <div class="shortcut-left">
+            <div class="shortcut-badge" aria-hidden="true">💳</div>
+            <div class="shortcut-meta">
+              <strong>Payments &amp; Plans</strong>
+              <span>Paystack / Stripe receipts</span>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="shortcut-card" href="/admin/mobile_api/locationlog/">
+          <div class="shortcut-left">
+            <div class="shortcut-badge" aria-hidden="true">🛰️</div>
+            <div class="shortcut-meta">
+              <strong>Live GPS Trail</strong>
+              <span>Worldwide exact addresses</span>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="shortcut-card" href="/admin/mobile_api/feedpost/">
+          <div class="shortcut-left">
+            <div class="shortcut-badge" aria-hidden="true">🛠️</div>
+            <div class="shortcut-meta">
+              <strong>Fix Feed Posts</strong>
+              <span>Photos, videos &amp; replies</span>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="shortcut-card" href="/admin/mobile_api/videoreel/">
+          <div class="shortcut-left">
+            <div class="shortcut-badge" aria-hidden="true">🎥</div>
+            <div class="shortcut-meta">
+              <strong>Watch Reels</strong>
+              <span>Artisan fix video demos</span>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="shortcut-card" href="/admin/mobile_api/userstory/">
+          <div class="shortcut-left">
+            <div class="shortcut-badge" aria-hidden="true">⏱️</div>
+            <div class="shortcut-meta">
+              <strong>24-Hour Stories</strong>
+              <span>Active clips &amp; viewer lists</span>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="shortcut-card" href="/admin/mobile_api/notification/">
+          <div class="shortcut-left">
+            <div class="shortcut-badge" aria-hidden="true">🔔</div>
+            <div class="shortcut-meta">
+              <strong>Notifications</strong>
+              <span>Real user alerts &amp; audit</span>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- Recent Activity Snapshot -->
+    <section class="two-col" aria-label="Recent Platform Activity">
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Newest Registered Members</h3>
+          <a class="badge-mini" href="/admin/mobile_api/userprofile/">View All →</a>
+        </div>
+        {% if recent_users %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Location</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in recent_users %}
+                <tr>
+                  <td>
+                    <strong>{{ u.name }}</strong><br>
+                    <span style="font-size:0.75rem;color:var(--text-muted);">{{ u.trade|default:"Member" }}</span>
+                  </td>
+                  <td>
+                    {% if u.role == 'Artisan' %}
+                      <span class="role-tag role-artisan">Artisan Pro</span>
+                    {% else %}
+                      <span class="role-tag role-client">Client</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ u.city|default:"Pending GPS" }}</td>
+                  <td>
+                    {% if u.is_company_verified %}
+                      <span class="pill-ok">✔ Verified</span>
+                    {% else %}
+                      <span class="badge-mini">Active</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-note">No members registered yet. Sign up from the LocalFix mobile app to see live accounts here.</div>
+        {% endif %}
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Latest Fixes-Only Moderation Logs</h3>
+          <a class="badge-mini" href="/admin/mobile_api/contentmoderationlog/">Audit Logs →</a>
+        </div>
+        {% if recent_moderation %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Account</th>
+                  <th>Type</th>
+                  <th>Action</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in recent_moderation %}
+                <tr>
+                  <td><strong>{{ log.user_email }}</strong></td>
+                  <td>{{ log.content_type }}</td>
+                  <td>
+                    {% if log.action_taken == 'warning' %}
+                      <span class="mod-tag mod-warn">Warning</span>
+                    {% else %}
+                      <span class="mod-tag mod-lock">{{ log.action_taken }}</span>
+                    {% endif %}
+                  </td>
+                  <td style="color:var(--text-secondary);">{{ log.reason|truncatechars:46 }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-note">All clear — zero content violations logged so far. Fixes-Only Guard is actively monitoring uploads.</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Interactive API Directory -->
+    <section class="panel" aria-labelledby="api-heading">
+      <div class="panel-header">
+        <div>
+          <h3 id="api-heading">Mobile REST API Directory</h3>
+          <span style="font-size:0.8rem;color:var(--text-muted);">All endpoints currently live for the LocalFix Flutter Mobile App</span>
+        </div>
+        <input type="search" id="api-filter" class="api-search" placeholder="Filter endpoints (e.g. calls, stories, ai)..." aria-label="Filter API endpoints">
+      </div>
+
+      <div class="api-grid" id="api-grid">
+        {% for ep in api_endpoints %}
+        <div class="api-item" data-search="{{ ep.path|lower }} {{ ep.label|lower }} {{ ep.method|lower }}">
+          <div>
+            <span class="api-path">{{ ep.path }}</span>
+            <span class="api-desc">{{ ep.label }}</span>
+          </div>
+          <span class="method-pill">{{ ep.method }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-inner">
+      <span>© LocalFix Global Technologies · Cloud Backend Gateway</span>
+      <div class="footer-links">
+        <a href="/admin/">Django Admin</a>
+        <a href="/api/health/">Health JSON</a>
+        <a href="/?format=json">Root JSON</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const STORAGE_KEY = 'color-scheme';
+      const meta = document.querySelector('meta[name="color-scheme"]');
+      const buttons = Array.from(document.querySelectorAll('.theme-btn'));
+      const systemLabel = document.getElementById('system-theme-label');
+      const mql = window.matchMedia('(prefers-color-scheme: dark)');
+
+      function getStoredChoice() {
+        try {
+          const val = localStorage.getItem(STORAGE_KEY);
+          if (val === 'light' || val === 'dark') return val;
+        } catch (e) {}
+        return 'system';
+      }
+
+      function updateSystemLabel() {
+        if (!systemLabel) return;
+        systemLabel.textContent = mql.matches ? 'System (Dark)' : 'System (White)';
+      }
+
+      function applyChoice(choice, persist) {
+        const metaValue = (choice === 'light' || choice === 'dark') ? choice : 'light dark';
+        if (meta) meta.content = metaValue;
+
+        if (persist) {
+          try {
+            if (choice === 'light' || choice === 'dark') {
+              localStorage.setItem(STORAGE_KEY, choice);
+            } else {
+              localStorage.removeItem(STORAGE_KEY);
+            }
+          } catch (e) {}
+        }
+
+        buttons.forEach((btn) => {
+          btn.setAttribute('aria-pressed', btn.dataset.themeChoice === choice ? 'true' : 'false');
+        });
+      }
+
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          applyChoice(btn.dataset.themeChoice, true);
+        });
+      });
+
+      // Keep UI in sync across tabs without retroactively clearing stored override
+      window.addEventListener('storage', (event) => {
+        if (event.key === STORAGE_KEY) {
+          applyChoice(getStoredChoice(), false);
+        }
+      });
+
+      // Update the "System (Dark/White)" hint label only — never clear stored preference
+      if (mql.addEventListener) {
+        mql.addEventListener('change', updateSystemLabel);
+      }
+
+      updateSystemLabel();
+      applyChoice(getStoredChoice(), false);
+
+      // Live Health Check button
+      const pingBtn = document.getElementById('health-ping-btn');
+      const healthOut = document.getElementById('health-output');
+      if (pingBtn && healthOut) {
+        pingBtn.addEventListener('click', async () => {
+          pingBtn.disabled = true;
+          pingBtn.textContent = 'Checking /api/health/...';
+          healthOut.classList.add('visible');
+          const t0 = performance.now();
+          try {
+            const res = await fetch('/api/health/', { headers: { Accept: 'application/json' } });
+            const ms = Math.round(performance.now() - t0);
+            const data = await res.json();
+            healthOut.textContent = `HTTP ${res.status} · ${ms} ms\n` + JSON.stringify(data, null, 2);
+          } catch (err) {
+            healthOut.textContent = `Health check failed: ${err}`;
+          } finally {
+            pingBtn.disabled = false;
+            pingBtn.textContent = '🩺 Run Live Health Check';
+          }
+        });
+      }
+
+      // API Directory live filter
+      const filterInput = document.getElementById('api-filter');
+      const apiItems = Array.from(document.querySelectorAll('#api-grid .api-item'));
+      if (filterInput) {
+        filterInput.addEventListener('input', () => {
+          const q = filterInput.value.trim().toLowerCase();
+          apiItems.forEach((item) => {
+            const haystack = item.getAttribute('data-search') || '';
+            item.style.display = !q || haystack.includes(q) ? '' : 'none';
+          });
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

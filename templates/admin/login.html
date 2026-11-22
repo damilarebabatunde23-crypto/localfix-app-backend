@@ -1,0 +1,163 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/login.css' %}">
+<style>
+  body.login {
+    background-color: var(--body-bg);
+    background-image:
+      radial-gradient(850px 380px at 15% 0%, rgba(91, 19, 236, 0.16), transparent 62%),
+      radial-gradient(650px 340px at 90% 10%, rgba(139, 92, 246, 0.12), transparent 60%);
+  }
+
+  body.login #container {
+    border-radius: 22px;
+    border: 1px solid var(--hairline-color);
+    box-shadow: var(--lf-card-shadow);
+    overflow: hidden;
+    max-width: 440px;
+    width: calc(100% - 2rem);
+    margin: 72px auto 32px;
+    background: var(--lf-card-bg);
+  }
+
+  body.login #header {
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  body.login #content {
+    padding: 26px 26px 22px;
+  }
+
+  body.login .form-row {
+    padding: 8px 0;
+  }
+
+  body.login .form-row label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+
+  body.login .form-row input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--body-bg);
+    color: var(--body-fg);
+  }
+
+  body.login .submit-row {
+    padding: 16px 0 4px;
+    text-align: center;
+  }
+
+  body.login .submit-row input {
+    width: 100%;
+    padding: 12px 18px !important;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .lf-login-back {
+    display: block;
+    text-align: center;
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    color: var(--link-fg);
+    font-weight: 700;
+    font-size: 13px;
+    text-decoration: none;
+  }
+
+  .lf-login-back:hover {
+    border-color: var(--primary);
+  }
+
+  .lf-login-subtitle {
+    margin: 0 0 18px;
+    font-size: 13px;
+    color: var(--body-quiet-color);
+    line-height: 1.5;
+  }
+</style>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} login{% endblock %}
+
+{% block usertools %}
+<div id="user-tools">
+  <span class="lf-theme-group" role="group" aria-label="Admin theme">
+    <button type="button" class="lf-theme-btn" data-lf-theme="light" aria-pressed="false">☀ White</button>
+    <button type="button" class="lf-theme-btn" data-lf-theme="dark" aria-pressed="false">🌙 Dark</button>
+    <button type="button" class="lf-theme-btn" data-lf-theme="system" aria-pressed="false">Auto</button>
+  </span>
+</div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block content_title %}{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block content %}
+<p class="lf-login-subtitle">
+  Sign in with your LocalFix administrator credentials to manage users, verified badges, live GPS trails, payments, and Fixes-Only moderation logs.
+</p>
+
+{% if form.errors and not form.non_field_errors %}
+<p class="errornote">
+  {% blocktranslate count counter=form.errors.items|length %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}
+</p>
+{% endif %}
+
+{% if form.non_field_errors %}
+  {% for error in form.non_field_errors %}
+  <p class="errornote">{{ error }}</p>
+  {% endfor %}
+{% endif %}
+
+<div id="content-main">
+  {% if user.is_authenticated %}
+  <p class="errornote">
+    {% blocktranslate trimmed %}
+      You are authenticated as {{ username }}, but are not authorized to access this page. Would you like to login to a different account?
+    {% endblocktranslate %}
+  </p>
+  {% endif %}
+
+  <form action="{{ app_path }}" method="post" id="login-form">
+    {% csrf_token %}
+    <div class="form-row">
+      {{ form.username.errors }}
+      {{ form.username.label_tag }} {{ form.username }}
+    </div>
+    <div class="form-row">
+      {{ form.password.errors }}
+      {{ form.password.label_tag }} {{ form.password }}
+      <input type="hidden" name="next" value="{{ next }}">
+    </div>
+    {% url 'admin_password_reset' as password_reset_url %}
+    {% if password_reset_url %}
+    <div class="password-reset-link">
+      <a href="{{ password_reset_url }}">{% translate 'Forgotten your password or username?' %}</a>
+    </div>
+    {% endif %}
+    <div class="submit-row">
+      <input type="submit" value="{% translate 'Log in to Admin Console' %}">
+    </div>
+  </form>
+</div>
+
+<a class="lf-login-back" href="/">← Return to Backend Gateway Portal</a>
+{% endblock %}

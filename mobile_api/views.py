@@ -1783,7 +1783,7 @@ def localfix_ai_ask_view(request):
             f"⚡ **Electrical & Solar Fix Guide ({city}):**\n"
             "• **Safety First**: Always switch off the main breaker before inspecting sockets, panels, or inverter terminals.\n"
             "• **Common Checks**: Tripping breakers usually indicate an overloaded circuit or short; inverter low-backup often means sulfated batteries or loose DC lugs.\n"
-            "• **Typical Service Range**: Diagnostic/socket fix ~\$25–\$65 (or equivalent in local currency); full inverter/solar installation varies by kVA.\n"
+            "• **Typical Service Range**: Diagnostic/socket fix ~$25–$65 (or equivalent in local currency); full inverter/solar installation varies by kVA.\n"
             "• **Next Step**: Post a photo/video of the fault on Home Feed or open **Nearby / GPS** to call a nearby Electrical & Solar pro!"
         )
     elif any(w in q for w in ('plumb', 'pipe', 'leak', 'water', 'toilet', 'sink', 'tap', 'drain', 'pump')):
@@ -1791,7 +1791,7 @@ def localfix_ai_ask_view(request):
             f"🔧 **Plumbing & Leak Repair Guide ({city}):**\n"
             "• **Immediate Step**: Shut off the nearest isolation valve or main water supply to prevent water damage.\n"
             "• **Common Causes**: Worn rubber washers/cartridges (dripping taps), loose P-trap seals (under-sink leaks), or grease/hair buildup (slow drains).\n"
-            "• **Typical Service Range**: Leak/tap fix ~\$20–\$55; pipe replacement or water pump repair ~\$50–\$140.\n"
+            "• **Typical Service Range**: Leak/tap fix ~$20–$55; pipe replacement or water pump repair ~$50–$140.\n"
             "• Tap **Nearby / GPS** to find and chat with a real plumber right now!"
         )
     elif any(w in q for w in ('ac', 'hvac', 'aircon', 'cooling', 'fridge', 'freezer', 'compressor')):
@@ -1799,7 +1799,7 @@ def localfix_ai_ask_view(request):
             f"❄️ **AC / HVAC & Cooling Troubleshooting ({city}):**\n"
             "• **Not Cooling**: Check if the indoor air filter is clogged with dust, verify thermostat mode is on *Cool*, and listen for whether the outdoor compressor/fan is spinning.\n"
             "• **Water Dripping Inside**: Usually a blocked condensate drain pipe—needs flushing.\n"
-            "• **Typical Service Range**: AC servicing & coil wash ~\$25–\$60; refrigerant gas refill or capacitor replacement ~\$45–\$120.\n"
+            "• **Typical Service Range**: AC servicing & coil wash ~$25–$60; refrigerant gas refill or capacitor replacement ~$45–$120.\n"
             "• Hire a certified HVAC artisan via **Nearby / GPS** and protect payment with **Escrow**!"
         )
     elif any(w in q for w in ('car', 'auto', 'mechanic', 'engine', 'brake', 'battery', 'generator', 'gen')):
