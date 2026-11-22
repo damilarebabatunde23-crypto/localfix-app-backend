@@ -293,3 +293,19 @@ class ContentModerationLog(models.Model):
     reason = models.TextField()
     action_taken = models.CharField(max_length=30)  # warning, locked_7_days, locked_30_days
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Notification(models.Model):
+    recipient_email = models.EmailField(db_index=True)
+    actor_email = models.EmailField(blank=True, default='')
+    actor_name = models.CharField(max_length=120, default='LocalFix')
+    actor_avatar = models.TextField(blank=True, default='')
+    notif_type = models.CharField(max_length=30, default='general')
+    title = models.CharField(max_length=160)
+    body = models.TextField(blank=True, default='')
+    ref_id = models.CharField(max_length=60, blank=True, default='')
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']

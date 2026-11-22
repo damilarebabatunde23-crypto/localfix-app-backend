@@ -16,6 +16,7 @@ urlpatterns = [
     path('ai/ask/', views.localfix_ai_ask_view, name='mobile-ai-ask'),
     path('media/upload/', views.media_upload_view, name='mobile-media-upload'),
     path('feed/', views.feed_view, name='mobile-feed'),
+    path('feed/<int:post_id>/', views.feed_delete_view, name='mobile-feed-delete'),
     path('feed/<int:post_id>/like/', views.feed_toggle_like, name='mobile-feed-like'),
     path('feed/<int:post_id>/comments/', views.feed_comments_view, name='mobile-feed-comments'),
     path('reels/', views.reels_view, name='mobile-reels'),
@@ -38,6 +39,8 @@ urlpatterns = [
     path('follow/toggle/', views.follow_toggle_view, name='mobile-follow-toggle'),
     path('team/', views.team_list_view, name='mobile-team-list'),
     path('team/toggle/', views.team_toggle_view, name='mobile-team-toggle'),
+    path('notifications/', views.notifications_view, name='mobile-notifications'),
+    path('notifications/read/', views.notifications_mark_read_view, name='mobile-notifications-read'),
     path('artisans/nearby/', views.nearby_artisans_view, name='mobile-nearby-artisans'),
     path('escrow/', views.escrow_summary_view, name='mobile-escrow'),
 ]

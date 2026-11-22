@@ -36,6 +36,7 @@ from .models import (
     StoryView,
     PaymentTransaction,
     ContentModerationLog,
+    Notification,
 )
 from .serializers import (
     UserProfileSerializer,
@@ -825,12 +826,38 @@ def _moderate_fixes_only_content(user_email, text, content_type, category=''):
     )
 
 
+def _push_notification(recipient_email, actor_email, actor_name, notif_type, title, body='', ref_id=''):
+    rec = (recipient_email or '').strip().lower()
+    act = (actor_email or '').strip().lower()
+    if not rec or (act and rec == act):
+        return
+    actor_avatar = ''
+    if act:
+        prof = UserProfile.objects.filter(email__iexact=act).first()
+        if prof:
+            actor_name = prof.name or actor_name
+            actor_avatar = prof.avatar_url or ''
+    Notification.objects.create(
+        recipient_email=rec,
+        actor_email=act,
+        actor_name=actor_name or 'LocalFix Member',
+        actor_avatar=actor_avatar,
+        notif_type=notif_type,
+        title=title[:160],
+        body=body[:400],
+        ref_id=str(ref_id or ''),
+    )
+
+
 @api_view(['GET', 'POST'])
 @parser_classes([JSONParser, MultiPartParser, FormParser])
 def feed_view(request):
     if request.method == 'GET':
         user_email = (request.query_params.get('email') or '').strip().lower()
+        author_filter = (request.query_params.get('author_email') or '').strip().lower()
         posts = FeedPost.objects.all()
+        if author_filter:
+            posts = posts.filter(author_email__iexact=author_filter)
         liked_ids = set()
         if user_email:
             liked_ids = set(PostLike.objects.filter(user_email=user_email).values_list('post_id', flat=True))
@@ -864,6 +891,7 @@ def feed_view(request):
             is_paid = bool(author_prof and author_prof.verified_until and author_prof.verified_until > now)
             item['author_is_verified'] = is_company or is_paid
             item['author_is_company'] = is_company
+            item['author_role'] = author_prof.role if author_prof else 'Customer'
             item['author_is_following'] = em in following_set
             item['author_in_my_team'] = em in team_set
             item['author_followers_count'] = follower_counts.get(em, 0)
@@ -888,6 +916,18 @@ def feed_view(request):
     return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['DELETE'])
+def feed_delete_view(request, post_id):
+    requester = (request.query_params.get('email') or request.headers.get('X-User-Email') or '').strip().lower()
+    post = FeedPost.objects.filter(id=post_id).first()
+    if not post:
+        return Response({'success': False, 'error': 'Post not found.'}, status=status.HTTP_404_NOT_FOUND)
+    if requester and post.author_email.lower() != requester:
+        return Response({'success': False, 'error': 'You can only delete your own posts.'}, status=status.HTTP_403_FORBIDDEN)
+    post.delete()
+    return Response({'success': True})
+
+
 @api_view(['POST'])
 def feed_toggle_like(request, post_id):
     post = FeedPost.objects.filter(id=post_id).first()
@@ -901,6 +941,15 @@ def feed_toggle_like(request, post_id):
     else:
         PostLike.objects.create(post=post, user_email=user_email)
         liked = True
+        _push_notification(
+            recipient_email=post.author_email,
+            actor_email=user_email,
+            actor_name=user_email.split('@')[0],
+            notif_type='like',
+            title='New Like on Your Fix Post',
+            body=f'Liked your post: "{post.text[:80]}"',
+            ref_id=post.id,
+        )
     post.likes = PostLike.objects.filter(post=post).count()
     post.save(update_fields=['likes'])
     return Response({'success': True, 'liked': liked, 'likes': post.likes})
@@ -940,6 +989,25 @@ def feed_comments_view(request, post_id):
     )
     post.comments_count = PostComment.objects.filter(post=post).count()
     post.save(update_fields=['comments_count'])
+    if parent_comment and parent_comment.author_email:
+        _push_notification(
+            recipient_email=parent_comment.author_email,
+            actor_email=comment.author_email,
+            actor_name=comment.author_name,
+            notif_type='reply',
+            title=f'{comment.author_name} replied to your comment',
+            body=text[:140],
+            ref_id=post.id,
+        )
+    _push_notification(
+        recipient_email=post.author_email,
+        actor_email=comment.author_email,
+        actor_name=comment.author_name,
+        notif_type='comment',
+        title=f'{comment.author_name} commented on your fix post',
+        body=text[:140],
+        ref_id=post.id,
+    )
     return Response(
         {'success': True, 'comment': PostCommentSerializer(comment).data, 'comments_count': post.comments_count},
         status=status.HTTP_201_CREATED,
@@ -1064,12 +1132,19 @@ def chat_conversations_view(request):
                     or profile.email.lower().endswith('@localfix.com')
                     or (profile.verified_until and profile.verified_until > timezone.now())
                 )
+            unread_in_conv = ChatMessage.objects.filter(
+                sender_email__iexact=other_email,
+                receiver_email__iexact=my_email,
+                is_read=False,
+            ).exclude(sender_email__iexact=my_email).count()
             seen[other_email] = {
                 'counterpart_email': other_email,
                 'counterpart_name': 'Saved Messages (You)' if other_email == my_email else (profile.name if profile else other_name),
                 'counterpart_role': profile.trade if profile else 'Member',
+                'counterpart_account_role': profile.role if profile else 'Customer',
                 'counterpart_avatar': profile.avatar_url if profile else '',
                 'counterpart_is_verified': is_verified,
+                'unread_count': unread_in_conv,
                 'last_message': preview,
                 'last_message_time': m.created_at.isoformat(),
             }
@@ -1123,6 +1198,16 @@ def chat_messages_view(request):
         media_url=media_url,
         audio_duration_sec=audio_duration_sec,
         is_read=(sender_email == receiver_email),
+    )
+    msg_preview = text if text else ('📷 Sent a photo' if msg.message_type == 'image' else '🎤 Sent a voice note')
+    _push_notification(
+        recipient_email=receiver_email,
+        actor_email=sender_email,
+        actor_name=msg.sender_name,
+        notif_type='message',
+        title=f'New message from {msg.sender_name}',
+        body=msg_preview[:140],
+        ref_id=msg.id,
     )
     return Response({'success': True, 'message': ChatMessageSerializer(msg).data}, status=status.HTTP_201_CREATED)
 
@@ -1245,6 +1330,15 @@ def call_start_view(request):
         is_video=bool(request.data.get('is_video', True)),
         status='ringing',
         offer_sdp=json.dumps(offer),
+    )
+    _push_notification(
+        recipient_email=callee_email,
+        actor_email=caller_email,
+        actor_name=call.caller_name,
+        notif_type='call',
+        title=f"{'Video' if call.is_video else 'Voice'} Call from {call.caller_name}",
+        body=f"{call.caller_name} tried to call you.",
+        ref_id=call.id,
     )
     return Response({'success': True, 'call': _serialize_call(call)}, status=status.HTTP_201_CREATED)
 
@@ -1405,7 +1499,7 @@ def story_mark_view(request, story_id):
 
     if viewer_email and viewer_email != (story.author_email or '').lower():
         prof = UserProfile.objects.filter(email__iexact=viewer_email).first()
-        StoryView.objects.update_or_create(
+        _, created = StoryView.objects.update_or_create(
             story=story,
             viewer_email=viewer_email,
             defaults={
@@ -1415,6 +1509,16 @@ def story_mark_view(request, story_id):
         )
         story.views_count = StoryView.objects.filter(story=story).count()
         story.save(update_fields=['views_count'])
+        if created:
+            _push_notification(
+                recipient_email=story.author_email,
+                actor_email=viewer_email,
+                actor_name=prof.name if prof else (viewer_name or viewer_email.split('@')[0]),
+                notif_type='story_view',
+                title='Viewed Your 24h Story',
+                body='Checked out your 24-hour work story.',
+                ref_id=story.id,
+            )
     elif not viewer_email:
         story.views_count += 1
         story.save(update_fields=['views_count'])
@@ -1467,6 +1571,14 @@ def follow_toggle_view(request):
     else:
         UserFollow.objects.create(follower_email=follower, following_email=following)
         is_following = True
+        _push_notification(
+            recipient_email=following,
+            actor_email=follower,
+            actor_name=follower.split('@')[0],
+            notif_type='follow',
+            title='New Follower',
+            body='Started following your LocalFix profile!',
+        )
 
     followers_count = UserFollow.objects.filter(following_email__iexact=following).count()
     following_count = UserFollow.objects.filter(follower_email__iexact=follower).count()
@@ -1517,9 +1629,56 @@ def team_toggle_view(request):
     else:
         TeamMember.objects.create(employer_email=employer, employee_email=employee, label=label)
         in_team = True
+        _push_notification(
+            recipient_email=employee,
+            actor_email=employer,
+            actor_name=employer.split('@')[0],
+            notif_type='team',
+            title='Added to Employer Team',
+            body=f'Added you to their My Team list ({label}).',
+        )
 
     team_count = TeamMember.objects.filter(employer_email__iexact=employer).count()
     return Response({'success': True, 'in_team': in_team, 'team_count': team_count})
+
+
+# ---- REAL PERSISTENT NOTIFICATIONS ----
+
+@api_view(['GET'])
+def notifications_view(request):
+    my_email = (request.query_params.get('email') or '').strip().lower()
+    if not my_email:
+        return Response({'success': True, 'unread_count': 0, 'notifications': []})
+    qs = Notification.objects.filter(recipient_email__iexact=my_email)[:60]
+    unread_count = Notification.objects.filter(recipient_email__iexact=my_email, is_read=False).count()
+    items = [
+        {
+            'id': n.id,
+            'actor_email': n.actor_email,
+            'actor_name': n.actor_name,
+            'actor_avatar': n.actor_avatar,
+            'notif_type': n.notif_type,
+            'title': n.title,
+            'body': n.body,
+            'ref_id': n.ref_id,
+            'is_read': n.is_read,
+            'created_at': n.created_at.isoformat(),
+        }
+        for n in qs
+    ]
+    return Response({'success': True, 'unread_count': unread_count, 'notifications': items})
+
+
+@api_view(['POST'])
+def notifications_mark_read_view(request):
+    my_email = (request.data.get('email') or '').strip().lower()
+    notif_id = request.data.get('id')
+    if notif_id:
+        Notification.objects.filter(id=notif_id).update(is_read=True)
+    elif my_email:
+        Notification.objects.filter(recipient_email__iexact=my_email, is_read=False).update(is_read=True)
+    unread_count = Notification.objects.filter(recipient_email__iexact=my_email, is_read=False).count() if my_email else 0
+    return Response({'success': True, 'unread_count': unread_count})
 
 
 # ---- LOCALFIX AI ASSISTANT (CLIENT & ARTISAN EXPERT CONCIERGE) ----
