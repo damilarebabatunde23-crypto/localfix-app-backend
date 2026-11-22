@@ -23,7 +23,7 @@ try:
             username=su_user,
             defaults={'email': su_email, 'is_staff': True, 'is_superuser': True},
         )
-        if created or not user.is_superuser or not user.is_staff:
+        if created or not user.is_superuser or not user.is_staff or not user.check_password(su_pass):
             user.email = su_email
             user.is_staff = True
             user.is_superuser = True
