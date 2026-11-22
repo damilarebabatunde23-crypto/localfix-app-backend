@@ -34,6 +34,9 @@ class UserProfile(models.Model):
     is_company_verified = models.BooleanField(default=False)
     verified_plan = models.CharField(max_length=20, blank=True, default='')
     verified_until = models.DateTimeField(null=True, blank=True)
+    warning_count = models.PositiveIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    lock_reason = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -257,3 +260,36 @@ class TeamMember(models.Model):
     class Meta:
         unique_together = ('employer_email', 'employee_email')
         ordering = ['-added_at']
+
+
+class StoryView(models.Model):
+    story = models.ForeignKey(UserStory, related_name='view_records', on_delete=models.CASCADE)
+    viewer_email = models.EmailField(db_index=True)
+    viewer_name = models.CharField(max_length=120)
+    viewer_avatar = models.TextField(blank=True, default='')
+    viewed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('story', 'viewer_email')
+        ordering = ['-viewed_at']
+
+
+class PaymentTransaction(models.Model):
+    user_email = models.EmailField(db_index=True)
+    plan = models.CharField(max_length=20)
+    provider = models.CharField(max_length=20, default='paystack')
+    reference = models.CharField(max_length=120, unique=True, db_index=True)
+    amount_minor = models.PositiveIntegerField(default=0)
+    currency = models.CharField(max_length=10, default='USD')
+    status = models.CharField(max_length=20, default='pending')  # pending, paid, failed
+    created_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+
+class ContentModerationLog(models.Model):
+    user_email = models.EmailField(db_index=True)
+    content_type = models.CharField(max_length=30)  # feed_post, video_reel, story
+    caption = models.TextField(blank=True, default='')
+    reason = models.TextField()
+    action_taken = models.CharField(max_length=30)  # warning, locked_7_days, locked_30_days
+    created_at = models.DateTimeField(auto_now_add=True)
